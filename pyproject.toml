@@ -1,0 +1,16 @@
+[project]
+name = "java-agent-lab"
+version = "0.1.0"
+description = "Java 开发者补齐 Python + Agent 技术栈的 30 天学习仓库（2026-11-13 ~ 2026-12-12）"
+readme = "README.md"
+authors = [
+    { name = "chayu", email = "3317038611@qq.com" }
+]
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.1",
+    "ruff>=0.17.5",
+]
