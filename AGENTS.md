@@ -68,6 +68,11 @@
 `.github/workflows/ci.yml` 在每次 push 和 PR 上跑：`ruff check` → `ruff format --check` → `mypy` → 构建站点。
 风格由 `pyproject.toml` 的 `[tool.ruff]` 锁定：4 空格缩进、行宽 100、双引号。
 
+本地复现 CI（`mypy` 和构建都要带 `--group docs`，否则 `markdown_it` 不可见）：
+
+- `uv run ruff check . && uv run ruff format --check .`
+- `uv run --group docs mypy .`
+
 ## 协作约定
 
 - 这是学习仓库：默认讲解思路、review 代码、指出错误，不代写当日练习，除非用户明确要求。

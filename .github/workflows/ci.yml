@@ -23,7 +23,8 @@ jobs:
         run: uv run ruff format --check .
 
       - name: Type check
-        run: uv run mypy .
+        # build_site.py 依赖 docs 组里的 markdown-it-py，不带 --group docs 会 import-not-found
+        run: uv run --group docs mypy .
 
       - name: Build site content
         run: uv run --group docs python tools/build_site.py
