@@ -16,3 +16,9 @@ wheels/
 
 # Obsidian 本地配置（workspace 记录窗口布局，随机器和操作变化）
 notes/.obsidian/
+
+# 站点生成物（CI 每次构建重生成，不入库）
+docs/content/
+
+# 本机工具配置（launch.json 里是本机 venv 的绝对路径）
+.claude/

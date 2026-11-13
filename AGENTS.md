@@ -11,6 +11,9 @@
 - `dayNN/java/`：对照阅读用的 Java 原版
 - `dayNN/python/`：Python 练习与当天产出
 - `notes/dayNN/`：当天笔记（markdown，Obsidian 可直接打开：frontmatter + callout + 双链）
+- `research/YYYY-MM-DD/`：岗位调研、学习计划、路线图等决策依据，按日期分目录，重做调研不覆盖旧结论
+- `tools/build_site.py`：站点内容构建脚本
+- `docs/`：GitHub Pages 站点（纯静态，无框架）；`docs/content/` 是生成物，不入库
 
 ## 进度
 
@@ -41,10 +44,18 @@
 
 ## 命令
 
-- `uv sync`
+- `uv sync --group docs`（首次或改了依赖后，含站点构建依赖 markdown-it-py）
 - `uv run dayNN/python/xxx.py`
 - `uv run ruff check dayNN/python`
 - `uv run mypy dayNN/python`
+- `uv run --group docs python tools/build_site.py`（重建站点内容；改了 notes/ 或代码后必跑）
+- `uv run python -m http.server 8765 --directory docs`（本地预览站点）
+
+## 站点
+
+`docs/` 是学习路径站点，推到 `main` 由 `.github/workflows/pages.yml` 自动构建发布。
+它不单独维护内容：笔记取自 `notes/`，代码取自 `dayNN/`，调研取自 `research/`。
+路线图的节点与每日计划手写在 `docs/assets/roadmap-data.js`——改计划时要同步改这里。
 
 ## 协作约定
 
