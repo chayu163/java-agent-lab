@@ -53,7 +53,8 @@
 
 ## 站点
 
-`docs/` 是学习路径站点，推到 `main` 由 `.github/workflows/pages.yml` 自动构建发布。
+`docs/` 是学习路径站点，已上线：<https://chayu163.github.io/java-agent-lab/>
+推到 `main` 由 `.github/workflows/pages.yml` 自动构建发布（Pages 的 Source 是 GitHub Actions，不是分支部署）。
 它不单独维护内容：笔记取自 `notes/`，代码取自 `dayNN/`，调研取自 `research/`。
 路线图的节点与每日计划手写在 `docs/assets/roadmap-data.js`——改计划时要同步改这里。
 
@@ -66,5 +67,6 @@
 
 ## 计划依据
 
-- 计划：`C:\Users\33170\repos\boss-agent-cli\AI-Agent学习计划-30天-2026-11-12.md`
-- 调研：`C:\Users\33170\repos\boss-agent-cli\AI岗位调研-杭州上海-2026-11-12.md`
+- 计划：[research/2026-11-12/AI-Agent学习计划-30天.md](research/2026-11-12/AI-Agent学习计划-30天.md)
+- 调研：[research/2026-11-12/AI岗位调研-杭州上海.md](research/2026-11-12/AI岗位调研-杭州上海.md)
+- 路线图原稿：[research/2026-11-12/学习路径图-original.html](research/2026-11-12/学习路径图-original.html)
