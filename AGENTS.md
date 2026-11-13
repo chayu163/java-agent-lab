@@ -17,13 +17,15 @@
 
 ## 进度
 
-| 阶段 | 天数 | 内容 | 状态 |
-|---|---|---|---|
-| 1 | Day 1-5 | Python 定向迁跃（Java→Python 差异点） | 进行中 |
-| 2 | Day 6-8 | LLM 应用基础（function calling / RAG / 评测） | 未开始 |
-| 3 | Day 9-13 | OpenManus 深读（agent harness） | 未开始 |
-| 4 | Day 14-20 | MaxKB 深读（企业智能体平台 + pgvector RAG） | 未开始 |
-| 5 | Day 21-30 | 复刻垂直版（LangGraph + pgvector + MCP + deepeval） | 未开始 |
+阶段划分与每日内容以计划原文为准（[research/2026-11-12/AI-Agent学习计划-30天.md](research/2026-11-12/AI-Agent学习计划-30天.md)），这里只记状态，不重复抄内容。
+
+| 阶段 | 天数 | 状态 |
+|---|---|---|
+| 1 | Day 1-5 | 进行中 |
+| 2 | Day 6-8 | 未开始 |
+| 3 | Day 9-13 | 未开始 |
+| 4 | Day 14-20 | 未开始 |
+| 5 | Day 21-30 | 未开始 |
 
 已完成的天：
 
@@ -57,6 +59,14 @@
 推到 `main` 由 `.github/workflows/pages.yml` 自动构建发布（Pages 的 Source 是 GitHub Actions，不是分支部署）。
 它不单独维护内容：笔记取自 `notes/`，代码取自 `dayNN/`，调研取自 `research/`。
 路线图的节点与每日计划手写在 `docs/assets/roadmap-data.js`——改计划时要同步改这里。
+
+新建 `notes/dayNN/` 后，必须把 `dayNN` 加进 `roadmap-data.js` 对应节点的 `days` 数组，
+否则构建脚本会报警并以非零退出（CI 会红）。这是唯一需要手动同步的地方。
+
+## 质量门
+
+`.github/workflows/ci.yml` 在每次 push 和 PR 上跑：`ruff check` → `ruff format --check` → `mypy` → 构建站点。
+风格由 `pyproject.toml` 的 `[tool.ruff]` 锁定：4 空格缩进、行宽 100、双引号。
 
 ## 协作约定
 

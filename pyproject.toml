@@ -17,3 +17,22 @@ dev = [
 docs = [
     "markdown-it-py>=4.3.0",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+# RUF001/2/3 会把中文注释里的全角标点判为「易混淆字符」，本项目注释以中文为主，属误报
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.format]
+indent-style = "space"
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true

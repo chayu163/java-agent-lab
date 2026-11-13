@@ -42,12 +42,13 @@ status: done
 ### 坑 1：可变默认参数只求值一次
 
 ```python
-def add(item, bucket=[]):   # ❌ bucket 这个 list 在 def 执行时创建，被函数对象永久持有
+def add(item, bucket=[]):  # ❌ bucket 这个 list 在 def 执行时创建，被函数对象永久持有
     bucket.append(item)
     return bucket
 
-add("a")   # ['a']
-add("b")   # ['a', 'b']  ← 不是 ['b']
+
+add("a")  # ['a']
+add("b")  # ['a', 'b']  ← 不是 ['b']
 ```
 
 `def` 语句执行时默认值就求值了，之后每次调用复用同一个对象。Java 没有这个问题，因为 Java 不给方法参数默认值（只能重载）。
@@ -74,8 +75,8 @@ dataclass 里对应的是 `field(default_factory=list)`。
 ```python
 a = [1, 2]
 b = [1, 2]
-a == b    # True  → 调用 list.__eq__，逐元素比
-a is b    # False → 两个不同的 list 对象
+a == b  # True  → 调用 list.__eq__，逐元素比
+a is b  # False → 两个不同的 list 对象
 ```
 
 > [!warning] 唯一该用 `is` 的场景
@@ -89,9 +90,9 @@ a is b    # False → 两个不同的 list 对象
 为 `False` 的：`None`、`False`、`0`、`0.0`、`""`、`[]`、`{}`、`()`、`set()`。
 
 ```python
-bool("0")   # True  ← 非空字符串
-bool([0])   # True  ← 非空容器，不看里面装什么
-bool(" ")   # True  ← 空格也是非空
+bool("0")  # True  ← 非空字符串
+bool([0])  # True  ← 非空容器，不看里面装什么
+bool(" ")  # True  ← 空格也是非空
 ```
 
 **只看容器空不空，不看内容真不真。** Java 里 `if (list)` 直接编译不过，所以这个坑 Java 程序员必踩。
@@ -100,11 +101,12 @@ bool(" ")   # True  ← 空格也是非空
 
 ```python
 class Bad:
-    tags = []               # ❌ 类属性，所有实例共享
+    tags = []  # ❌ 类属性，所有实例共享
+
 
 class Good:
     def __init__(self) -> None:
-        self.tags = []      # ✅ 实例属性
+        self.tags = []  # ✅ 实例属性
 ```
 
 > [!danger] 关键判断标准
@@ -138,8 +140,11 @@ Java 注解是给编译器 / 框架读的**元数据**，运行时靠反射，�
 @deco
 def f(): ...
 
+
 # 完全等价于
 def f(): ...
+
+
 f = deco(f)
 ```
 
@@ -159,10 +164,10 @@ Python 没有 classpath。`import x` 按 `sys.path` 列表顺序查找。项目�
 ### 坑 9：除法
 
 ```python
-7 / 2      # 3.5   永远浮点
-7 // 2     # 3     整除，向下取整
--7 // 2    # -4    ← Java 是 -3（截断）
--7 % 3     # 2     ← Java 是 -1（截断余数）
+7 / 2  # 3.5   永远浮点
+7 // 2  # 3     整除，向下取整
+-7 // 2  # -4    ← Java 是 -3（截断）
+-7 % 3  # 2     ← Java 是 -1（截断余数）
 ```
 
 > [!note] 恒等式
@@ -171,7 +176,9 @@ Python 没有 classpath。`import x` 按 `sys.path` 列表顺序查找。项目�
 
 ### 坑 10：缩进即语法
 
-tab / 空格混用直接 `TabError`。本仓库统一 tab（ruff `indent-style = "tab"`）。
+缩进是语法结构的一部分，不只是排版。同一文件里 tab / 空格混用会直接 `TabError`。
+
+本仓库统一 **4 空格**，由 `pyproject.toml` 的 `[tool.ruff.format] indent-style = "space"` 锁定，`ruff format` 负责执行。
 
 ---
 
@@ -182,7 +189,7 @@ tab / 空格混用直接 `TabError`。本仓库统一 tab（ruff `indent-style =
 > 相当于 Java 里标了 `@NonNull` 却赋 `null`。
 
 ```python
-state: OrderState | None = None           # Python 3.10+
+state: OrderState | None = None  # Python 3.10+
 history: list[OrderState] | None = None
 # 等价于 typing.Optional[OrderState]，对应 Java 的 @Nullable
 ```
@@ -218,8 +225,9 @@ class Order:
 ```python
 def __eq__(self, other: object) -> bool:
     if not isinstance(other, Order):
-        return NotImplemented      # 注意是 NotImplemented，不是 False
-    return self._id == other._id   # 实体语义：同 id 即同一实体
+        return NotImplemented  # 注意是 NotImplemented，不是 False
+    return self._id == other._id  # 实体语义：同 id 即同一实体
+
 
 def __hash__(self) -> int:
     return hash(self._id)
@@ -242,7 +250,8 @@ def __hash__(self) -> int:
 @dataclass
 class A:
     x: int
-    def __init__(self, x: int) -> None:   # 手写了 init
+
+    def __init__(self, x: int) -> None:  # 手写了 init
         self.x = x
 ```
 
