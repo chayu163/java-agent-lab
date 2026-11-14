@@ -30,12 +30,16 @@
 已完成的天：
 
 - **Day 1**（2026-11-13）Python 迁跃：`day01/python/order.py`（批注版）、`order_bean.py`（Java bean 风格标准版）、`day01/python/demos.py`（10 个坑的可运行演示）、`notes/day01/java-python-diff.md`。验收通过：12 项自测清单全勾。
+- **Day 2**（2026-11-14）函数是一等公民：`day02/python/` 下 `decorators.py`、`generators.py`、`context.py`、`typing_practice.py`、`tool_schema.py`（主产出，Pydantic → OpenAI tools schema）；`notes/day02/python-functions-typing.md`，含两幅 archify 交互图（`notes/day02/assets/`）。验收：15 题诊断全部批改，五脚本运行通过。
 
 ## 已澄清的认知（避免重复踩）
 
 - GIL 限制的是 CPython 线程执行字节码，不是"只能开一个线程"；asyncio 单线程 + `await` 让出，IO 密集场景不受影响。Agent 服务是 IO 密集型，不是 CPU 密集型。
 - Python 无需在类体声明字段，`__init__` 里 `self.x = ...` 即创建实例属性；类体里的 `tags: list[str]` 只是类型注解，不创建属性。
-- 装饰器是运行时函数替换（`f = deco(f)`），不是 Java 注解那样的反射元数据。
+- 装饰器是**定义时**（模块导入时）的函数替换（`f = deco(f)`），不是 Java 注解那样的反射元数据。被装饰函数调 N 次：装饰器函数体只跑 1 次，wrapper 跑 N 次。
+- 生成器函数调用后执行 0 行，`next()` 才推进到第一个 `yield`；生成器里的 `return value` 只结束迭代，不产出元素。
+- `@contextmanager` 是 `contextlib` 里的标准库函数，不是语言语法；`with` 认的是 `__enter__`/`__exit__` 协议，不要求是类实例。
+- 类型注解在运行时**完全不生效**，只有默认值生效；`Any` 是关闭类型检查，不是 Java 的 `Object`。
 - `==` ↔ Java `equals()`，`is` ↔ Java `==`；`//` 向下取整、`%` 与除数同号（Java 是与被除数同号）。
 
 ## 工具链
