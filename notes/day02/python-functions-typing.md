@@ -337,7 +337,7 @@ model_json_schema()：
 
 ## 8 · 明天
 
-**Day 3 · asyncio**：event loop、coroutine、Task、gather、Semaphore、timeout、async with
+**[[Day 3 · asyncio 并发模型]]**：event loop、coroutine、Task、gather、Semaphore、timeout、async with
 产出：asyncio + httpx 并发调 5 个公共 API（带超时与并发上限）
 
 > [!danger] 这里最先翻车

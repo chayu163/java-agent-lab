@@ -8,9 +8,11 @@
 
 ## 目录约定
 
+- `dayNN/README.md`：当天知识树（从 day03 起），讲结构与取舍，不是题解
 - `dayNN/java/`：对照阅读用的 Java 原版
 - `dayNN/python/`：Python 练习与当天产出
 - `notes/dayNN/`：当天笔记（markdown，Obsidian 可直接打开：frontmatter + callout + 双链）
+- `notes/dayNN/assets/`：笔记引用的交互图（archify 生成的独立 HTML），构建时拷进站点
 - `research/YYYY-MM-DD/`：岗位调研、学习计划、路线图等决策依据，按日期分目录，重做调研不覆盖旧结论
 - `tools/build_site.py`：站点内容构建脚本
 - `docs/`：GitHub Pages 站点（纯静态，无框架）；`docs/content/` 是生成物，不入库
@@ -31,6 +33,11 @@
 
 - **Day 1**（2026-11-13）Python 迁跃：`day01/python/order.py`（批注版）、`order_bean.py`（Java bean 风格标准版）、`day01/python/demos.py`（10 个坑的可运行演示）、`notes/day01/java-python-diff.md`。验收通过：12 项自测清单全勾。
 - **Day 2**（2026-11-14）函数是一等公民：`day02/python/` 下 `decorators.py`、`generators.py`、`context.py`、`typing_practice.py`、`tool_schema.py`（主产出，Pydantic → OpenAI tools schema）；`notes/day02/python-functions-typing.md`，含两幅 archify 交互图（`notes/day02/assets/`）。验收：15 题诊断全部批改，五脚本运行通过。
+- **Day 3**（2026-11-17）asyncio 并发：`day03/python/` 下 `00_trace.py`（协程状态机实测）、`01_coroutine.py`~`04_resources.py`（概念/调度/控制/资源四层）、`05_fetch.py`（主产出，httpx 并发调 5 个 API）；`day03/README.md`（知识树）、`notes/day03/asyncio-concurrency.md`，含三幅 archify 交互图。验收：五个脚本全部跑通，ruff/mypy 全绿。
+
+进行中的天：
+
+- **Day 4**（pytest）：测试工具链已就位（dev 组含 pytest / pytest-asyncio / pytest-cov），用例仍在写，尚未验收。
 
 ## 已澄清的认知（避免重复踩）
 
@@ -41,19 +48,24 @@
 - `@contextmanager` 是 `contextlib` 里的标准库函数，不是语言语法；`with` 认的是 `__enter__`/`__exit__` 协议，不要求是类实例。
 - 类型注解在运行时**完全不生效**，只有默认值生效；`Any` 是关闭类型检查，不是 Java 的 `Object`。
 - `==` ↔ Java `equals()`，`is` ↔ Java `==`；`//` 向下取整、`%` 与除数同号（Java 是与被除数同号）。
+- 协程的栈帧是**堆上的对象**，不是线程栈上的一块内存；"挂起"= 帧从栈上摘下、由 coroutine 对象持有。这是 Java 线程无法挂起而 Python 协程可以的物理原因。
+- `create_task` 只把 `__step` 塞进 loop 的 ready 队列，**不执行**；main 不让出，任务一步都不跑。
+- `await` 是"可能挂起"：被等的对象已就绪时不挂起。`await coro()` 就地驱动（同一 Task、嵌套栈），`await task` 只是等（不同 Task、独立栈）。
+- `gather` 按**参数顺序**交付并丢弃完成顺序；`as_completed` 按**完成顺序**透传，且产出的是协程不是 Task，必须再 `await` 一次。
+- 进出成对的操作（计数、名额），"出"那一半必须放 `finally`，否则取消/异常时泄漏。
 
 ## 工具链
 
 - Python 3.11.9、uv 0.13.7，均由 mise 管理；非交互 shell 用 `mise exec -- uv ...`
-- ruff（lint/format）、mypy（类型检查）为 dev 依赖
+- dev 组：ruff（lint/format）、mypy（类型检查）、pytest + pytest-asyncio + pytest-cov
+- 运行期依赖：httpx、pydantic；站点构建单独在 docs 组（markdown-it-py）
 - Docker 只在 VMware 虚拟机里，Windows 宿主机没有 `docker` 命令
 
 ## 命令
 
 - `uv sync --group docs`（首次或改了依赖后，含站点构建依赖 markdown-it-py）
-- `uv run dayNN/python/xxx.py`
-- `uv run ruff check dayNN/python`
-- `uv run mypy dayNN/python`
+- `uv run dayNN/python/xxx.py`（跑单个脚本）
+- `uv run pytest -q`（跑全部测试，从仓库根收集，不需要逐个指定目录）
 - `uv run --group docs python tools/build_site.py`（重建站点内容；改了 notes/ 或代码后必跑）
 - `uv run python -m http.server 8765 --directory docs`（本地预览站点）
 
@@ -61,7 +73,7 @@
 
 `docs/` 是学习路径站点，已上线：<https://chayu163.github.io/java-agent-lab/>
 推到 `main` 由 `.github/workflows/pages.yml` 自动构建发布（Pages 的 Source 是 GitHub Actions，不是分支部署）。
-它不单独维护内容：笔记取自 `notes/`，代码取自 `dayNN/`，调研取自 `research/`。
+它不单独维护内容：笔记取自 `notes/`，代码取自 `dayNN/`，调研取自 `research/`，笔记里的 `assets/` 会一起拷进站点。
 路线图的节点与每日计划手写在 `docs/assets/roadmap-data.js`——改计划时要同步改这里。
 
 新建 `notes/dayNN/` 后，必须把 `dayNN` 加进 `roadmap-data.js` 对应节点的 `days` 数组，
@@ -69,13 +81,17 @@
 
 ## 质量门
 
-`.github/workflows/ci.yml` 在每次 push 和 PR 上跑：`ruff check` → `ruff format --check` → `mypy` → 构建站点。
-风格由 `pyproject.toml` 的 `[tool.ruff]` 锁定：4 空格缩进、行宽 100、双引号。
+`.github/workflows/ci.yml` 在每次 push 和 PR 上跑四步：`ruff check` → `ruff format --check` → `mypy` → 构建站点。
+风格由 `pyproject.toml` 的 `[tool.ruff]` 锁定：4 空格缩进、行宽 100、双引号；`notes/` 被排除在外，笔记里的代码围栏按讲解排版，不交给 formatter 重排。
 
 本地复现 CI（`mypy` 和构建都要带 `--group docs`，否则 `markdown_it` 不可见）：
 
 - `uv run ruff check . && uv run ruff format --check .`
 - `uv run --group docs mypy .`
+- `uv run --group docs python tools/build_site.py`
+
+**CI 不跑 pytest。** 测试是否通过只能本地验证：`uv run pytest -q`。
+这是已知缺口——等 Day 4 验收通过后，再把 pytest 加进 CI。
 
 ## 协作约定
 

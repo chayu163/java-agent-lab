@@ -484,6 +484,25 @@ def build_notes(manifest: dict[str, Any]) -> None:
         )
 
 
+ASSET_SUFFIXES = {".html", ".css", ".js", ".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp"}
+
+
+def copy_note_assets() -> None:
+    """把 notes/dayNN/assets/ 拷进站点，笔记里的相对链接才打得开。
+
+    只拷会展示的资源；finalize / browser-check 那些回执 JSON 属于构建证据，不上站点。
+    """
+    for assets in sorted(NOTES_DIR.glob("day*/assets")):
+        if not assets.is_dir():
+            continue
+        target = CONTENT_DIR / "notes" / assets.parent.name / "assets"
+        for path in sorted(assets.iterdir()):
+            if not path.is_file() or path.suffix.lower() not in ASSET_SUFFIXES:
+                continue
+            target.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, target / path.name)
+
+
 def build_code(manifest: dict[str, Any]) -> None:
     for day_dir in sorted(ROOT.glob("day*")):
         if not day_dir.is_dir():
@@ -559,6 +578,7 @@ def main() -> None:
         "research": [],
     }
     build_notes(manifest)
+    copy_note_assets()
     build_code(manifest)
     build_research(manifest)
     (CONTENT_DIR / "manifest.json").write_text(

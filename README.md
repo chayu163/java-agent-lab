@@ -8,33 +8,36 @@ Java 开发者补齐 Python + Agent 技术栈的 30 天学习仓库。路线基�
 
 ## 阶段
 
-| 阶段 | 天数 | 内容 | 状态 |
-|---|---|---|---|
-| 1 | Day 1-5 | Python 定向迁跃（只补 Java→Python 差异） | 进行中 |
-| 2 | Day 6-8 | LLM 应用基础（function calling / RAG / 评测） | 未开始 |
-| 3 | Day 9-13 | OpenManus 深读（agent harness） | 未开始 |
-| 4 | Day 14-20 | MaxKB 深读（企业平台 + pgvector RAG） | 未开始 |
-| 5 | Day 21-30 | 复刻垂直版（LangGraph + pgvector + MCP + deepeval） | 未开始 |
+| 阶段 | 天数 | 内容 |
+|---|---|---|
+| 1 | Day 1-5 | Python 定向迁跃（只补 Java→Python 差异） |
+| 2 | Day 6-8 | LLM 应用基础（function calling / RAG / 评测） |
+| 3 | Day 9-13 | OpenManus 深读（agent harness） |
+| 4 | Day 14-20 | MaxKB 深读（企业平台 + pgvector RAG） |
+| 5 | Day 21-30 | 复刻垂直版（LangGraph + pgvector + MCP + deepeval） |
 
-计划原文与岗位调研：[research/2026-11-12/](research/2026-11-12/)。
+计划原文与岗位调研：[research/2026-11-12/](research/2026-11-12/)。当前进度只记在 [AGENTS.md](AGENTS.md)，站点路线图按天显示已产出的内容——README 不重复维护进度。
 
 ## 目录
 
 ```text
 dayNN/
-├── java/     # 对照阅读用的 Java 原版
-└── python/   # Python 练习与当天产出
+├── README.md   # 当天知识树（从 day03 起）
+├── java/       # 对照阅读用的 Java 原版
+└── python/     # Python 练习与当天产出
 
 notes/
-└── dayNN/    # 当天笔记（Obsidian 可直接打开）
+└── dayNN/
+    ├── *.md      # 当天笔记（Obsidian 可直接打开）
+    └── assets/   # 笔记引用的交互图，构建时随笔记一起发布
 
 research/
-└── YYYY-MM-DD/   # 调研、计划、路线图，按日期归档
+└── YYYY-MM-DD/   # 调研、计划、路线图，按日期归档，重做不覆盖旧结论
 
 tools/
 └── build_site.py # 站点内容构建
 
-docs/           # GitHub Pages 站点，content/ 是生成物
+docs/             # GitHub Pages 站点源码；content/ 是生成物，不入库
 ```
 
 根目录是唯一的 uv 项目，30 天共享一个 `.venv`；依赖统一在 `pyproject.toml` 声明。
@@ -42,19 +45,20 @@ docs/           # GitHub Pages 站点，content/ 是生成物
 ## 常用命令
 
 ```bash
-uv sync --group docs
-uv add <package>
-uv run day01/python/order.py
-uv run ruff check day01/python
-uv run ruff format day01/python
-uv run mypy day01/python
+uv sync --group docs              # 首次，或改了依赖之后
+uv run day03/python/05_fetch.py   # 跑当天脚本
+uv run pytest -q                  # 跑全部测试，从仓库根收集
 ```
 
-重建并预览学习路径站点：
+质量门，与 CI 完全一致：
 
 ```bash
+uv run ruff check . && uv run ruff format --check .
+uv run --group docs mypy .
 uv run --group docs python tools/build_site.py
 ```
+
+本地预览站点：
 
 ```bash
 uv run python -m http.server 8765 --directory docs
@@ -68,15 +72,3 @@ uv run python -m http.server 8765 --directory docs
 - 笔记写在 `notes/dayNN/`，按"5 分钟能讲清楚"验收。
 - `~/repos` 下的第三方仓库（boss-agent-cli、OpenManus、MaxKB）是学习材料，不算自有项目。
 - 站点内容不单独维护：笔记取自 `notes/`，代码取自 `dayNN/`，调研取自 `research/`，推送后由 CI 重建。
-
-## 进度
-
-- [x] Day 1：环境、Java→Python 差异清单、订单状态机翻译
-- [ ] Day 2：装饰器 / 生成器 / with / typing / Pydantic v2
-- [ ] Day 3：asyncio
-- [ ] Day 4：pytest
-- [ ] Day 5：mini agent loop
-- [ ] 阶段 2：LLM 应用基础（Day 6-8）
-- [ ] 阶段 3：OpenManus 深读（Day 9-13）
-- [ ] 阶段 4：MaxKB 深读（Day 14-20）
-- [ ] 阶段 5：复刻垂直版（Day 21-30）

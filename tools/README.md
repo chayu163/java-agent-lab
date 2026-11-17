@@ -10,6 +10,7 @@
 | 站点区块 | 来源 |
 |---|---|
 | 笔记 | `notes/dayNN/*.md` |
+| 笔记配图 | `notes/dayNN/assets/*.html`（原样拷贝） |
 | 代码 | `dayNN/python/*.py`、`dayNN/java/*.java` |
 | 调研 | `research/**/*.md` |
 
@@ -35,9 +36,12 @@ uv run python -m http.server 8765 --directory docs
 
 - frontmatter（`title` / `date` / `tags` / `status`）→ 拆出来喂给抽屉的元信息
 - callout：`> [!note]` / `[!tip]` / `[!warning]` / `[!danger]` / `[!important]` / `[!abstract]`
-- wikilink：`[[目标]]`、`[[目标|别名]]`，能对上标题就渲染成页内锚点，对不上显示为未解析
+- wikilink：`[[目标]]`、`[[目标|别名]]`，**只在当前笔记内匹配标题锚点**；指向别的笔记的双链在站点上显示为未解析（Obsidian 里正常跳转）
 - 任务列表：`- [x]` / `- [ ]`
 - 表格、代码围栏、行内代码
+
+**mermaid 代码围栏不做服务端渲染**，站点上以源码块显示；Obsidian 里能正常画图。
+需要交互图时用 `notes/dayNN/assets/` 下的 archify HTML，笔记里写成相对链接。
 
 代码高亮是自写的正则分词器（Python / Java），不引第三方库。
 
@@ -50,6 +54,10 @@ docs/
 ├── assets/app.js         交互层
 ├── assets/roadmap-data.js  路线图节点、分带、每日计划（手写内容）
 └── content/              构建产物，gitignore
+    ├── notes/dayNN/      渲染后的笔记正文 + assets/ 里的配图
+    ├── code/dayNN/       高亮后的代码片段
+    ├── research/         调研与计划
+    └── manifest.json     站点索引，前端据此知道有哪些内容
 ```
 
 - **路线图**：4 带 10 节点的纵向路径（底座 → Agent 工程 → 检索与评测 → 作品与投递），

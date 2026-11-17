@@ -307,7 +307,7 @@ class Order:
 
 ## 八、明天要看
 
-- [[Day 2 函数是一等公民]]：装饰器手写 `@retry` / `@timer`、生成器 `yield`、`with` 上下文管理器、typing（Protocol / Generic / dataclass / Pydantic v2）
+- [[Day 2 · 函数是一等公民]]：装饰器手写 `@retry` / `@timer`、生成器 `yield`、`with` 上下文管理器、typing（Protocol / Generic / dataclass / Pydantic v2）
 - 产出：用 Pydantic 定义一套 Tool schema —— 这是阶段 2 function calling 的直接前置
 
 > [!note] 关联
