@@ -31,15 +31,14 @@
 
 已完成的天：
 
-- **Day 1**（2026-11-13）Python 迁跃：`day01/python/order.py`（批注版）、`order_bean.py`（Java bean 风格标准版）、`day01/python/demos.py`（10 个坑的可运行演示）、`notes/day01/java-python-diff.md`。验收通过：12 项自测清单全勾。
+- **Day 1**（2026-11-13）Python 迁跃：`day01/python/order.py`（批注版）、`order_bean.py`（Java bean 风格标准版）、`day01/python/demos.py`（十项语义差异的可运行演示）、`notes/day01/java-python-diff.md`。验收通过：12 项自测清单全勾。
 - **Day 2**（2026-11-14）函数是一等公民：`day02/python/` 下 `decorators.py`、`generators.py`、`context.py`、`typing_practice.py`、`tool_schema.py`（主产出，Pydantic → OpenAI tools schema）；`notes/day02/python-functions-typing.md`，含两幅 archify 交互图（`notes/day02/assets/`）。验收：15 题诊断全部批改，五脚本运行通过。
 - **Day 3**（2026-11-17）asyncio 并发：`day03/python/` 下 `00_trace.py`（协程状态机实测）、`01_coroutine.py`~`04_resources.py`（概念/调度/控制/资源四层）、`05_fetch.py`（主产出，httpx 并发调 5 个 API）；`day03/README.md`（知识树）、`notes/day03/asyncio-concurrency.md`，含三幅 archify 交互图。验收：五个脚本全部跑通，ruff/mypy 全绿。
+- **Day 4**（2026-11-18）pytest：`day04/python/` 下 `01_fixtures_test.py`、`02_parametrize_test.py`、`03_mock_test.py`、`test_fetch.py`（主产出，给 Day 3 写 5 个测试）；`day04/README.md`（知识树）、`notes/day04/pytest.md`。验收：34 个测试全绿，ruff/format/mypy/构建全过。
 
-进行中的天：
+进行中的天：暂无。
 
-- **Day 4**（pytest）：测试工具链已就位（dev 组含 pytest / pytest-asyncio / pytest-cov），用例仍在写，尚未验收。
-
-## 已澄清的认知（避免重复踩）
+## 已澄清的认知（避免重复出错）
 
 - GIL 限制的是 CPython 线程执行字节码，不是"只能开一个线程"；asyncio 单线程 + `await` 让出，IO 密集场景不受影响。Agent 服务是 IO 密集型，不是 CPU 密集型。
 - Python 无需在类体声明字段，`__init__` 里 `self.x = ...` 即创建实例属性；类体里的 `tags: list[str]` 只是类型注解，不创建属性。
@@ -49,7 +48,7 @@
 - 类型注解在运行时**完全不生效**，只有默认值生效；`Any` 是关闭类型检查，不是 Java 的 `Object`。
 - `==` ↔ Java `equals()`，`is` ↔ Java `==`；`//` 向下取整、`%` 与除数同号（Java 是与被除数同号）。
 - 协程的栈帧是**堆上的对象**，不是线程栈上的一块内存；"挂起"= 帧从栈上摘下、由 coroutine 对象持有。这是 Java 线程无法挂起而 Python 协程可以的物理原因。
-- `create_task` 只把 `__step` 塞进 loop 的 ready 队列，**不执行**；main 不让出，任务一步都不跑。
+- `create_task` 只把 `__step` 放入 loop 的 ready 队列，**不执行**；main 不让出控制权，任务一步都不跑。
 - `await` 是"可能挂起"：被等的对象已就绪时不挂起。`await coro()` 就地驱动（同一 Task、嵌套栈），`await task` 只是等（不同 Task、独立栈）。
 - `gather` 按**参数顺序**交付并丢弃完成顺序；`as_completed` 按**完成顺序**透传，且产出的是协程不是 Task，必须再 `await` 一次。
 - 进出成对的操作（计数、名额），"出"那一半必须放 `finally`，否则取消/异常时泄漏。
@@ -81,7 +80,7 @@
 
 ## 质量门
 
-`.github/workflows/ci.yml` 在每次 push 和 PR 上跑四步：`ruff check` → `ruff format --check` → `mypy` → 构建站点。
+`.github/workflows/ci.yml` 在每次 push 和 PR 上跑五步：`ruff check` → `ruff format --check` → `mypy` → `pytest` → 构建站点。
 风格由 `pyproject.toml` 的 `[tool.ruff]` 锁定：4 空格缩进、行宽 100、双引号；`notes/` 被排除在外，笔记里的代码围栏按讲解排版，不交给 formatter 重排。
 
 本地复现 CI（`mypy` 和构建都要带 `--group docs`，否则 `markdown_it` 不可见）：

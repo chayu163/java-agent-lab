@@ -48,4 +48,6 @@ warn_redundant_casts = true
 [tool.pytest.ini_options]
 # 不写 testpaths：从仓库根自动收集，新的一天加了测试不需要改配置
 asyncio_mode = "auto"
+# 异步 fixture 的事件循环按 function scope 建，和同步 fixture 的默认行为一致
+asyncio_default_fixture_loop_scope = "function"
 addopts = "-ra"
