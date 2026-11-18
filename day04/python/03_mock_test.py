@@ -77,11 +77,10 @@ async def test_async_mock() -> None:
     ❌     fake = AsyncMock(return_value=5.0)
     ❌     await fake("A1")
     ❌     fake.assert_called_once_with("A1")
-    ❌ 这个测试什么也没验证 —— 它从头到尾没碰 fetch_async。
-    ❌ 它测的是「我刚造的这个 mock 能不能被调用」，等于自己考自己。
-    ❌ 把 fetch_async 整个删掉，这条测试照样绿。
+    ❌ 该测试全程未引用 fetch_async，验证对象与被测代码无关：
+    ❌ 删除 fetch_async 后它依然通过。
 
-    ✅ mock 的意义是【替换被测代码里的某样东西】，所以必须让被测代码用上它。
+    ✅ mock 的作用是替代被测代码引用的对象，因此被测代码必须实际使用到它。
     """
     with patch.object(THIS, "fetch_async", new=AsyncMock(return_value=5.0)):
         assert await fetch_async("A1") == 5.0

@@ -46,8 +46,8 @@ def transport_with(
     statuses = statuses or {}
 
     async def handler(request: httpx.Request) -> httpx.Response:
-        url = str(request.url)
         """按 URL 决定响应延迟与状态码。未登记的 URL 立即返回 200。"""
+        url = str(request.url)
         await asyncio.sleep(delays.get(url, 0.0))
         return httpx.Response(statuses.get(url, 200), json={"url": url})
 
