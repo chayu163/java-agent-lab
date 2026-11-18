@@ -89,8 +89,7 @@
 - `uv run --group docs mypy .`
 - `uv run --group docs python tools/build_site.py`
 
-**CI 不跑 pytest。** 测试是否通过只能本地验证：`uv run pytest -q`。
-这是已知缺口——等 Day 4 验收通过后，再把 pytest 加进 CI。
+测试配置在 `pyproject.toml` 的 `[tool.pytest.ini_options]`：`testpaths` 限定收集目录，`asyncio_mode = "auto"` 让异步测试函数不必逐个挂装饰器。
 
 ## 协作约定
 
@@ -98,6 +97,21 @@
 - 用户是 Java 背景、Python 初学者；解释优先用 Java 概念类比（`equals` ↔ `__eq__`、classpath ↔ venv、`record` ↔ `dataclass`）。
 - 每天必须留下可运行产出，只读不写视为不合格。
 - 第三方仓库（boss-agent-cli、OpenManus、MaxKB）是学习材料，不能算自有项目写进简历。
+
+## 写作规范
+
+代码注释、文档说明、笔记一律遵循 `zh-dev-writing` skill（`~/.claude/skills/zh-dev-writing/`），落笔前先读对应细则。
+
+要点：
+
+- 注释只写两件事：What（这是什么，一行）与 Why（为什么这样写，须落到具体后果）。复述代码字面意思的注释不写。
+- 用说明文，不用口语。不写「把它」「靠它」「坑」「搞」「塞进去」「一下」「先不用管」这类措辞。
+- 理由要可核对：写「否则会怎样」「改回原方案会坏在哪」，「为了性能」「历史原因」不算理由。
+- 不引用文档章节号、错误码、内部字段名；把内容本身写出来。
+- 注释内统一半角标点，标识符与类型名不翻译。
+- 不写行尾注释，不保留注释掉的代码，不为凑覆盖率写模板文档。
+
+既有文字已按此规范整理完毕，无需回头批量改写；发现新的不合规处，先列出再改。
 
 ## 计划依据
 
