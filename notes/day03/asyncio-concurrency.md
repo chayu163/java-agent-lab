@@ -44,12 +44,12 @@ flowchart LR
 
 四个对象，各管一件事：
 
-| 对象 | 是什么 | Java 类比 |
-|---|---|---|
+| 对象            | 是什么                      | Java 类比                |
+| ------------- | ------------------------ | ---------------------- |
 | **coroutine** | 可暂停的函数（`async def` 的返回值） | Kotlin 的 `suspend fun` |
-| **Task** | 协程 + 驱动壳，被循环调度 | `Future` |
-| **Future** | 一个"尚未发生的结果" | `CompletableFuture` |
-| **EventLoop** | 单线程调度器，维护就绪队列与定时器 | Netty 的 `EventLoop` |
+| **Task**      | 协程 + 驱动壳，被循环调度           | `Future`               |
+| **Future**    | 一个"尚未发生的结果"              | `CompletableFuture`    |
+| **EventLoop** | 单线程调度器，维护就绪队列与定时器        | Netty 的 `EventLoop`    |
 
 ---
 
@@ -110,12 +110,12 @@ Python：帧是堆上的普通对象
 
 ---
 
-## 三、循环和你的代码是什么关系
+## 三、循环与用户代码的调用关系
 
-不是并排运行的两个东西，是**调用关系**。在协程里打印调用栈（由内向外）：
+两者不是并排运行，而是**调用关系**。在协程中打印调用栈（由内向外）：
 
 ```text
-main()                        ← 你的协程，栈顶
+main()                        ← 用户协程，栈顶
   ↑
 events.py: _run()             ← 循环执行一个就绪回调
   ↑
@@ -126,8 +126,8 @@ base_events.py: run_forever() ← 真正的 while True
 runners.py: run()             ← asyncio.run()
 ```
 
-> **你 `await` 时协程 `return`，控制权沿栈退回 `_run_once`——那一刻就是循环在跑。**
-> 你跑时循环停着，循环跑时你停着：同一个线程，交替使用。
+> **协程 `await` 时 `return`，控制权沿栈退回 `_run_once`，此时是循环在执行。**
+> 协程执行时循环停着，循环执行时协程停着：同一个线程，交替使用。
 
 用监控任务实测（每行打印出来本身就证明 main 让出了）：
 
@@ -217,7 +217,7 @@ async def outer():
 send(None) 一次就抛了 StopIteration
 ```
 
-**只有被等的对象还没就绪时才真的让出。** 后果：`gather` 里如果全是纯计算协程，它们就是串行跑完的，毫无并发。
+**只有被 await 的对象尚未就绪时才真正让出。** 后果：`gather` 中若全部是纯计算协程，它们会串行执行完毕，不产生任何并发。
 
 ### 6.2 两种 `await`，行为完全不同
 
@@ -317,7 +317,7 @@ for x in asyncio.as_completed(tasks):
 t=0.002  main  create_task x3，三个都没开始
 t=0.002  main  进入 for，await 空队列 → main 挂起
 t=0.002  loop  启动 slow / mid / fast
-t=0.057  fast  完成 → 塞信箱 → 唤醒 main
+t=0.057  fast  完成 → 放入完成队列 → 唤醒 main
 t=0.057  main  拿到 'fast' → 下一轮，信箱空 → 再挂起
 t=0.148  mid   完成 → 同上
 t=0.303  slow  完成 → 同上，结束
@@ -354,8 +354,8 @@ async with sem:            # 名额满了就在这排队
 >     await asyncio.sleep(delay)     # 抛异常/被取消…
 >     tracker["active"] -= 1         # …这行永远不执行
 > ```
-> Semaphore 自己不会漏（`async with` 保证 release），**你自己的计数会漏**。
-> 实测：取消一个任务后残留 1。真实项目里这是"在途请求数"，漏一个就是故障。
+> Semaphore 自身不会泄漏（`async with` 保证 release），**泄漏的是自定义计数**。
+> 实测：取消一个任务后残留 1。生产环境中该计数代表在途请求数，泄漏一次即为故障。
 
 ### 8.2 timeout —— 总时限
 
@@ -383,8 +383,8 @@ sequenceDiagram
 ```
 
 > [!danger] `CancelledError` 继承自 `BaseException`
-> 不是 `Exception`——故意的，防止 `except Exception` 顺手吞掉取消。
-> 但 `except BaseException:` 不重抛，任务就"正常结束"，调用方以为取消了其实还在跑。
+> 不是 `Exception`，这是刻意的设计：防止 `except Exception` 顺手吞掉取消。
+> 但若写成 `except BaseException:` 而不重抛，任务会"正常结束"，调用方以为已取消，实际仍在运行。
 
 ---
 
@@ -421,8 +421,8 @@ async for item in ["a", "b"]:        # ✗ TypeError: no __aiter__
 queue: asyncio.Queue[str | None] = asyncio.Queue(maxsize=2)
 ```
 
-> [!warning] `maxsize` 不是"实际塞满过几次"
-> 它是你设置的上限，永远等于 2。测背压要记录 `queue.qsize()` 的实际峰值。
+> [!warning] `maxsize` 不是「实际堆积过的最大长度」
+> 它是配置的上限，恒等于 2。测量背压需要记录 `queue.qsize()` 的实际峰值。
 
 ---
 
@@ -485,7 +485,7 @@ offline: 5 个请求 / 并发上限 2 / 总耗时 0.35s   （串行下界 1.66s�
 | `time.sleep()` | `await asyncio.sleep()` | 卡死整个循环 |
 | 漏写 `await` | 补上 | 拿到 coroutine 对象，无警告 |
 | `async for x in list` | `for x in list` | `TypeError: no __aiter__` |
-| `Queue[str]` 塞 `None` | `Queue[str \| None]` | 类型错误 |
+| `Queue[str]` 写入 `None` | `Queue[str \| None]` | 类型错误 |
 | 计数递减写在普通语句 | 放 `finally` | 取消/异常时泄漏 |
 | `except Exception` 抓取消 | 不抓，让它传播 | 抓不到（`BaseException`） |
 | `except BaseException` 吞取消 | 必须 re-raise | 取消失效 |
@@ -549,7 +549,7 @@ task.done() / task.cancelled() / task.result()
 ## 十四、自测
 
 - [ ] 协程的帧存在哪里？为什么这决定了它能被挂起？
-- [ ] 事件循环和你的协程是什么调用关系？画出调用栈
+- [ ] 事件循环与协程是什么调用关系？画出调用栈
 - [ ] `create_task` 返回时，协程状态是什么？
 - [ ] main 一直不让出，任务会怎样？
 - [ ] `await coro()` 和 `await task` 的三个差别

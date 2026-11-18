@@ -1,14 +1,14 @@
 """Day 1 作业：把 Order.java 的状态机翻译成 Python。
 
-四条硬性要求：
-1. 用 enum.Enum + auto() 定义状态，print(state) 输出可读的名字
-2. 非法转换抛 InvalidTransition，异常消息里带当前状态
-3. history 对外返回不可变副本（对应 Java 的 List.copyOf）
-4. apply(event: str) 用字典分发表实现，不要 if/elif 链
+四条约束：
+1. 用 enum.Enum + auto() 定义状态，print(state) 输出可读名字
+2. 非法转换抛 InvalidTransition，消息里带当前状态
+3. history 对外返回不可变副本，对应 Java 的 List.copyOf
+4. apply(event: str) 用字典分发表，不用 if/elif 链
 
-批注版（2026-11-13）：❌ 是被注释掉的原写法，✅ 是改法，原因写在旁边。
-组织方式按 Java bean：字段私有 + 只读属性（getter），状态只能通过业务方法流转；
-故意不提供 setter —— 否则外部能绕过状态机直接改状态。
+本文件是批注版：❌ 标注被替换掉的写法，✅ 标注当前写法，原因写在该行上方。
+组织方式按 Java bean —— 字段私有 + 只读属性（getter），状态只能经业务方法流转。
+刻意不提供 setter：一旦开放写入口，外部就能绕过状态机直接赋值。
 """
 
 from enum import Enum, auto
@@ -26,24 +26,23 @@ class OrderState(Enum):
     CANCELLED = auto()
 
 
-# ---------------- 原写法（已注释） ----------------
-# ❌ @dataclass 只用了半截：类里已有手写的 __init__，dataclass 就不再生成 init，
-#    但 __repr__ / __eq__ 照样会生成，于是 Order("A1") == Order("A1") 为 True
-#    （Java 没写 equals 时是 False）。要么全用 dataclass + __post_init__，
-#    要么不用；这里按 Java bean 风格选后者。
+# ❌ 只用了半截的 @dataclass：类里已有手写的 __init__，dataclass 不再生成 init，
+#    但 __repr__ 与 __eq__ 照样生成，于是 Order("A1") == Order("A1") 为 True，
+#    而 Java 未写 equals 时是 False。要么全用 dataclass + __post_init__，要么不用；
+#    这里按 Java bean 风格选后者。
 #
 # @dataclass
 # class Order:
 #     _id: str
 #     _state: OrderState
 #     _history: list[OrderState]
-# --------------------------------------------------
 
 
 class Order:
     """订单状态机。"""
 
-    # ✅ 事件名 -> 处理方法名。类属性只建一次；原写法在每次 apply 调用时重建 dict。
+    # 事件名到处理方法名的映射。声明为类属性只构造一次。
+    # ❌ 原写法在每次 apply 调用里重建这个 dict。
     _EVENTS: ClassVar[dict[str, str]] = {
         "pay": "pay",
         "ship": "ship",
@@ -53,8 +52,9 @@ class Order:
     def __init__(
         self,
         id: str,
-        # ❌ state: OrderState = None          -> mypy: 隐式 Optional（Python 注解默认不可空）
-        # ❌ history: list[OrderState] = None  -> 同上
+        # ❌ state: OrderState = None          触发 mypy 的隐式 Optional 报告
+        # ❌ history: list[OrderState] = None  同上
+        # Python 的类型注解默认非空，允许 None 必须显式写成 X | None。
         state: OrderState | None = None,
         history: list[OrderState] | None = None,
     ) -> None:
@@ -64,12 +64,12 @@ class Order:
 
     def pay(self) -> None:
         if self._state != OrderState.CREATED:
-            # 用 .name 对齐 Java 输出的 "CREATED"；直接插值枚举会打印 OrderState.CREATED
+            # 用 .name 对齐 Java 输出的 "CREATED"；直接插值枚举会打印 OrderState.CREATED。
             raise InvalidTransition(f"Cannot pay when order is in state {self._state.name}")
         # ❌ self.state = OrderState.PAID
         # ❌ self.history.append(self.state)
-        #    这两行会抛 AttributeError: property 'state' has no setter。
-        #    property 是只读的，类内部一律写私有字段 self._state / self._history。
+        # 这两行抛 AttributeError: property 'state' has no setter。
+        # property 是只读的，类内部一律写私有字段。
         self._state = OrderState.PAID
         self._history.append(self._state)
 
@@ -83,21 +83,21 @@ class Order:
 
     def cancel(self) -> None:
         # ❌ if self._state != OrderState.CREATED:
-        #    原写法只放行 CREATED，但 Java 原版拒绝的是 SHIPPED 和 CANCELLED，
-        #    也就是 CREATED 和 PAID 都能取消。翻译状态机先读成"允许集合"再写条件。
+        # 这种写法只放行 CREATED，但 Java 原版拒绝的是 SHIPPED 和 CANCELLED，
+        # 即 CREATED 与 PAID 都可取消。翻译状态机时先确定允许集合，再写条件。
         if self._state in (OrderState.SHIPPED, OrderState.CANCELLED):
             raise InvalidTransition(f"Cannot cancel when order is in state {self._state.name}")
         self._state = OrderState.CANCELLED
         self._history.append(self._state)
 
     def apply(self, event: str) -> None:
-        # ❌ 原写法在每次调用里重建 event_map
+        # ❌ 原写法在每次调用里重建 event_map。
         handler = self._EVENTS.get(event)
         if handler is None:
             raise ValueError(f"Unknown event: {event}")
         getattr(self, handler)()
 
-    # 只读属性 = Java bean 的 getter 方法；没有 setter 意味着外部拿不到写入口
+    # 只读属性即 Java bean 的 getter；没有 setter，外部拿不到写入口。
     @property
     def id(self) -> str:
         return self._id
@@ -108,7 +108,7 @@ class Order:
 
     @property
     def history(self) -> tuple[OrderState, ...]:
-        # ✅ tuple() 就是 Java 的 List.copyOf：调用方拿到快照，改不到内部 list
+        # tuple() 对应 Java 的 List.copyOf：调用方拿到快照，无法改动内部 list。
         return tuple(self._history)
 
     def __repr__(self) -> str:  # Java 的 toString()
@@ -122,7 +122,7 @@ if __name__ == "__main__":
     order.ship()
     print(order)
 
-    # PAID 状态也能取消（Java 原版允许，之前的写法会误抛异常）
+    # PAID 状态同样可以取消，Java 原版允许。
     paid = Order("A2")
     paid.pay()
     paid.cancel()

@@ -1,7 +1,7 @@
 """Day 2 · 练习 3：上下文管理器。
 
-同一件事写两遍：手写 __enter__/__exit__，再用 contextlib.contextmanager 改写。
-写完对照一下，说清楚两种写法各自适合什么场景。
+同一功能写两遍：手写 __enter__ / __exit__，再用 contextlib.contextmanager 改写。
+完成后对照两者，说明各自适用的场景。
 
 验收：uv run day02/python/context.py
 """
@@ -14,14 +14,13 @@ from typing import Self
 
 
 class Timer:
-    """手写版：__enter__ 记开始时间，__exit__ 算耗时并打印。"""
+    """手写版：__enter__ 记录开始时间，__exit__ 计算耗时并打印。"""
 
     def __init__(self, label: str = "") -> None:
         self.label = label
         self.elapsed = 0.0
 
     def __enter__(self) -> Self:
-        # raise NotImplementedError("TODO: 记下开始时间，返回 self")
         self.start_time = time.perf_counter()
         return self
 
@@ -31,7 +30,6 @@ class Timer:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
-        # raise NotImplementedError("TODO: 算耗时并打印；返回 None 表示不吞异常")
         self.elapsed = time.perf_counter() - self.start_time
         print(f"{self.label} 耗时: {self.elapsed:.6f} 秒")
 
@@ -51,7 +49,6 @@ class Suppress:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> bool:
-        # raise NotImplementedError("TODO: exc_type 属于 exc_types 就返回 True")
         if exc_type is None:
             return False
         return issubclass(exc_type, self.exc_types)
@@ -59,11 +56,10 @@ class Suppress:
 
 @contextmanager
 def timed(label: str) -> Iterator[None]:
-    """contextlib 版：yield 之前是 __enter__，yield 之后是 __exit__。
+    """contextlib 版：yield 之前对应 __enter__，之后对应 __exit__。
 
-    提示：中间那段要用 try/finally 包住，否则 with 块里抛异常时收尾代码不执行。
+    中间部分要用 try/finally 包住，否则 with 块内抛异常时收尾代码不执行。
     """
-    # raise NotImplementedError("TODO: 计时 -> yield -> finally 里打印")
     start_time = time.perf_counter()
     try:
         yield
@@ -81,14 +77,14 @@ if __name__ == "__main__":
         time.sleep(0.05)
 
     with Suppress(ValueError):
-        raise ValueError("被 Suppress 吞掉，不该冒泡")
+        raise ValueError("被 Suppress 吞掉，不应向上冒泡")
 
     try:
         with Timer("不吞异常"):
-            raise RuntimeError("应该继续向上传播")
+            raise RuntimeError("应继续向上传播")
     except RuntimeError as exc:
         print("expected:", exc)
     else:
-        raise AssertionError("Timer 不应该吞异常")
+        raise AssertionError("Timer 不应吞异常")
 
     print("context: 全部通过")

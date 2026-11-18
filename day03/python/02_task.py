@@ -1,10 +1,10 @@
 """Day 3 · 练习 2：调度层 —— create_task / gather / TaskGroup / as_completed
 
-同一批活儿，五种调度方式的差别就在这个文件里。重点盯两件事：
-    - 结果顺序 vs 完成顺序（gather 给前者，as_completed 给后者）
-    - 一个任务失败时，兄弟任务是"继续跑"还是"被取消"
+同一批任务，五种调度方式的差别集中在本文件。观察两点：
+    - 结果顺序与完成顺序的差异：gather 交付前者，as_completed 交付后者
+    - 单个任务失败时，其余任务继续运行还是被取消
 
-跑法：uv run day03/python/02_task.py
+运行：uv run day03/python/02_task.py
 """
 
 import asyncio
@@ -12,24 +12,23 @@ import time
 
 
 async def job(name: str, delay: float) -> str:
-    """睡 delay 秒后返回 name。本文件所有场景共用这个活儿。"""
+    """等待 delay 秒后返回 name。本文件各场景共用该任务。"""
     await asyncio.sleep(delay)
     return name
 
 
 # ---------------------------------------------------------------------------
-# 1. 串行基线（反面教材，但你需要它做对照）
+# 1. 串行基线：作为后续并发写法的对照
 # ---------------------------------------------------------------------------
 
 
 async def serial_jobs(specs: list[tuple[str, float]]) -> list[str]:
-    """一个一个 await，总耗时 = 所有 delay 之和。
+    """逐个 await，总耗时等于所有 delay 之和。
 
-    ★ 这就是"列表推导 + await"的写法：[await job(n, d) for n, d in specs]
-      它看上去像并发，实际是串行 —— 每个 await 都在原地等完才做下一个。
+    列表推导加 await 属于串行写法：每个 await 在原地等待完成后才处理下一个，
+    看上去像并发，实际没有并发。
     """
-    # 你写对了。只有一处要改：空列表要标类型，mypy 才知道后面 append 什么。
-    # ❌ results = []
+    # 空列表必须标注元素类型，mypy 才能推断 append 的目标类型。
     results: list[str] = []
     for name, delay in specs:
         result = await job(name, delay)
@@ -38,47 +37,39 @@ async def serial_jobs(specs: list[tuple[str, float]]) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# 2. gather：批量排期，按【参数顺序】收结果
+# 2. gather：批量排期，按参数顺序交付结果
 # ---------------------------------------------------------------------------
 
 
 async def with_gather(specs: list[tuple[str, float]]) -> list[str]:
-    """gather 一次性排期所有协程，返回结果列表（顺序 = 参数顺序）。"""
-    # 这题完全正确。`*(...)` 是把生成器摊开成位置参数，gather 要的是若干个协程，不是列表。
+    """gather 一次性排期所有协程，返回结果列表，顺序与参数顺序一致。"""
+    # `*(...)` 把生成器摊开成位置参数。gather 接收的是若干协程，不是列表。
     return await asyncio.gather(*(job(n, d) for n, d in specs))
 
 
 async def gather_order_proof() -> tuple[list[str], list[str]]:
-    """返回 (gather 给出的顺序, 实际完成顺序)。两个不一样才是对的。"""
-    # ❌ 原写法有四个问题，逐个说：
-
-    # ❌ 问题 1：specs 在这个函数里不存在。
-    #    它是 __main__ 里的局部变量，函数看不到别的函数的局部变量。
-    #    这正是 Day 1 的坑 7（作用域）以另一种形式出现 —— 参数要自己传或自己定义。
+    """返回 (gather 交付顺序, 实际完成顺序)。两者不一致才符合预期。"""
+    # 常见错误写法及其原因：
     #
-    # ❌ finished: list[str] = []
-    # ❌ tasks: list[asyncio.Task] = []
-    # ❌ for n, d in specs:
-    # ❌     task = asyncio.create_task(job(n, d))
-    # ❌     tasks.append(task)
+    # 1. 引用 specs —— 它是 __main__ 的局部变量，函数无法访问其他函数的局部变量。
+    #    参数需要自行传入或在本函数内定义。
     #
-    # ❌ 问题 2：for task in asyncio.as_completed(tasks) 拿到的是"完成顺序"，
-    #    但你要的 finished 确实是完成顺序，这一步没错 —— 错在你把它当成 gather 的返回值。
+    # 2. 用 as_completed 的产出充当 gather 的返回值。as_completed 交付的是完成顺序，
+    #    而 gather 交付的是参数顺序，两者是不同的东西。
     #
-    # ❌ 问题 3：results = with_gather(specs)  ← 少了 await。
-    #    with_gather 是 async def，调用它只创建 coroutine 对象，不会执行。
-    #    results 拿到的是 <coroutine object ...>，后面 assert 一比较就炸。
-    #    这就是笔记第八节列的第 2 个坑，你亲手踩了一次。
+    # 3. 漏写 await。with_gather 是 async def，调用它只创建 coroutine 对象，
+    #    不执行函数体，后续比较得到的是 coroutine 对象本身。
     #
-    # ❌ 问题 4：就算补上 await，这里也跑了【两遍】任务（一遍 create_task，一遍 with_gather），
-    #    finished 来自第一遍，results 来自第二遍，两组数据不是同一次运行的结果，对照就失去意义。
+    # 4. 分别用 create_task 与 with_gather 各跑一遍。两遍执行的结果不对应同一次运行，
+    #    完成顺序与 gather 顺序的对照因此失去意义。
     #
-    # ✅ 正确做法：让一个协程在【完成的那一刻】自己记账，然后只跑一遍。
+    # 正确做法：让每个协程在完成的时刻自行记录，只跑一遍。
     finished: list[str] = []
 
     async def tracked(name: str, delay: float) -> str:
         await asyncio.sleep(delay)
-        finished.append(name)  # 谁先醒谁先 append，这就是真实完成顺序
+        # 先返回的协程先记录，这里得到的是真实完成顺序。
+        finished.append(name)
         return name
 
     results = await asyncio.gather(
@@ -86,18 +77,17 @@ async def gather_order_proof() -> tuple[list[str], list[str]]:
         tracked("fast", 0.01),
         tracked("mid", 0.03),
     )
-    # gather 的返回值按你传参数时的顺序排，和谁先完成无关
+    # gather 按传参顺序排列返回值，与完成先后无关。
     return list(results), finished
 
 
 # ---------------------------------------------------------------------------
-# 3. create_task：立刻排期，不等
+# 3. create_task：立即排期，不等待
 # ---------------------------------------------------------------------------
 
 
 async def with_create_task() -> list[str]:
-    """用 create_task 起两个任务，等它们完成，返回按创建顺序的结果。"""
-    # 完全正确。这题你抓到了"create_task 立刻排期，await 才是等"的本质。
+    """用 create_task 启动两个任务，等待完成后按创建顺序返回结果。"""
     task1 = asyncio.create_task(job("a", 0.05))
     task2 = asyncio.create_task(job("b", 0.05))
     result1 = await task1
@@ -106,44 +96,31 @@ async def with_create_task() -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# 4. TaskGroup：结构化并发，一个失败全体取消（3.11+）
+# 4. TaskGroup：结构化并发，单个失败导致全体取消（3.11+）
 # ---------------------------------------------------------------------------
 
 
 async def with_task_group_failure_proof() -> tuple[list[str], list[str]]:
-    """TaskGroup 里一个任务抛异常，兄弟全部被取消。
+    """TaskGroup 中单个任务抛异常时，其余任务全部取消。
 
-    返回 (正常完成的, 被取消的)。
-    ★ 外面要用 `except* ValueError:` 接住 —— 结构化并发抛的是 ExceptionGroup。
+    返回 (正常完成的任务, 被取消的任务)。
+    ★ 外层用 `except* ValueError:` 捕获 —— 结构化并发抛出的是 ExceptionGroup。
     """
-    # ❌ 原写法几乎每一行都有问题，而且问题是同一个根源：
-    #    你把 TaskGroup 当成了一个"接收若干任务、替我跑"的函数。
-    #    它不是函数，是【上下文管理器】。这个区别就是本题的全部内容。
+    # 常见错误写法的共同根源：把 TaskGroup 当成「接收若干任务并代为运行」的函数。
+    # 它是上下文管理器，这个区别构成本题的全部内容。
     #
-    # ❌ taskError = asyncio.create_task(job("error", 0.0), exception=ValueError())
-    #    create_task 没有 exception 参数。Python 里让任务失败的唯一方式是
-    #    【协程内部抛异常】，不存在"造一个带异常的 Task"这种写法。
-    #    （Java 的 CompletableFuture 有 failedFuture()，Python 没有对应物。）
+    # 1. create_task 没有 exception 参数。让任务失败的唯一方式是协程内部抛异常，
+    #    不存在「构造一个带异常的 Task」的写法（Java 的 CompletableFuture 有
+    #    failedFuture()，Python 无对应物）。
     #
-    # ❌ task1 = asyncio.create_task(job("sleep1", 0.05))
-    # ❌ tasks = [taskError, task1, task2]
-    #    任务必须在 TaskGroup 的 async with 块【里面】创建，块才管得住它们。
-    #    在块外面 create_task，TaskGroup 根本不知道它们存在。
+    # 2. 任务必须在 TaskGroup 的 async with 块内创建，块才能管理它们。
+    #    在块外 create_task，TaskGroup 不知道这些任务存在。
     #
-    # ❌ await asyncio.task_group(taskError, task1, task2)
-    #    asyncio.task_group 这个名字不存在。正确的是 asyncio.TaskGroup()：
+    # 3. asyncio.task_group 这个名称不存在，正确写法是 asyncio.TaskGroup()。
+    #    块的边界即任务的生命周期边界：离开块时所有任务要么完成，要么被取消。
     #
-    #        async with asyncio.TaskGroup() as tg:
-    #            tg.create_task(...)
-    #            tg.create_task(...)
-    #
-    #    块的边界 = 任务的生命周期边界。出了块，所有任务要么完成、要么被取消。
-    #
-    # ❌ 用 task.get_name() 判断谁被取消
-    #    get_name() 返回的是自动生成的 "Task-3"，不是你传给 job 的 "sleep1"。
-    #    名字要自己记，不能指望框架帮你记。
-    #
-    # ✅ 正确写法：
+    # 4. task.get_name() 返回自动生成的名字（如 "Task-3"），不是传给 job 的参数。
+    #    名字需要自行记录，不依赖框架生成。
 
     done: list[str] = []
     cancelled: list[str] = []
@@ -156,7 +133,7 @@ async def with_task_group_failure_proof() -> tuple[list[str], list[str]]:
             done.append(name)
             return name
         except asyncio.CancelledError:
-            # 被取消时记一笔，然后【必须重新抛】—— 吞掉它取消就失效了
+            # 被取消时记录，然后必须重新抛出；吞掉它会使取消失效。
             cancelled.append(name)
             raise
 
@@ -166,31 +143,26 @@ async def with_task_group_failure_proof() -> tuple[list[str], list[str]]:
             tg.create_task(tracked("slow1", 0.05))
             tg.create_task(tracked("slow2", 0.05))
     except* ValueError:
-        # 结构化并发把所有异常打包成 ExceptionGroup，要用 except* 按类型拆开
+        # 结构化并发把所有异常打包成 ExceptionGroup，用 except* 按类型拆开。
         pass
 
     return done, cancelled
 
 
 # ---------------------------------------------------------------------------
-# 5. as_completed：谁先完成谁先交
+# 5. as_completed：按完成顺序交付
 # ---------------------------------------------------------------------------
 
 
 async def with_as_completed() -> list[str]:
-    """返回【完成顺序】：slow=0.06 / mid=0.03 / fast=0.01。"""
-    # 完全正确。和 gather 的区别正是本题考点：gather 按参数顺序，as_completed 按完成顺序。
+    """返回完成顺序：slow=0.06 / mid=0.03 / fast=0.01。"""
     task1 = asyncio.create_task(job("slow", 0.06))
     task2 = asyncio.create_task(job("mid", 0.03))
     task3 = asyncio.create_task(job("fast", 0.01))
 
     futures = [task1, task2, task3]
     results: list[str] = []
-    # ❌ results = asyncio.as_completed(futures)
-    #    这行有三个问题：① 上一行的空列表立刻变成死代码；② as_completed 返回的是
-    #    生成器，不是 list[str]，mypy 直接报 assignment 不兼容；③ 就算类型对，
-    #    不消费生成器也拿不到任何结果。
-    #    "一次 await 取一个"只能靠下面的 for 循环，省不掉。
+    # as_completed 返回生成器而非 list，且必须逐个消费才能拿到结果。
     for fut in asyncio.as_completed(futures):
         result = await fut
         results.append(result)
@@ -212,18 +184,18 @@ if __name__ == "__main__":
         assert serial == ["a", "b", "c", "d", "e"]
         assert concurrent == ["a", "b", "c", "d", "e"]
         assert t_concurrent < t_serial / 3, (
-            f"并发应该快一个量级: 串行 {t_serial:.3f}s vs 并发 {t_concurrent:.3f}s"
+            f"并发耗时应显著低于串行：串行 {t_serial:.3f}s，并发 {t_concurrent:.3f}s"
         )
 
         gathered, finished = await gather_order_proof()
-        assert gathered == ["slow", "fast", "mid"], f"gather 按参数顺序: {gathered}"
-        assert finished == ["fast", "mid", "slow"], f"完成顺序应该反过来: {finished}"
+        assert gathered == ["slow", "fast", "mid"], f"gather 按参数顺序交付: {gathered}"
+        assert finished == ["fast", "mid", "slow"], f"完成顺序应与参数顺序相反: {finished}"
 
         assert await with_create_task() == ["a", "b"]
 
         done, cancelled = await with_task_group_failure_proof()
-        assert done == [], f"慢任务应该被打断，不该完成: {done}"
-        assert sorted(cancelled) == ["slow1", "slow2"], f"兄弟应被取消: {cancelled}"
+        assert done == [], f"较慢的任务应被中断，不应完成: {done}"
+        assert sorted(cancelled) == ["slow1", "slow2"], f"兄弟任务应被取消: {cancelled}"
 
         assert await with_as_completed() == ["fast", "mid", "slow"]
 

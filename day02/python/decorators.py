@@ -2,12 +2,11 @@
 
 要求
 1. timer：打印被包装函数的调用耗时，返回值原样透传。
-2. retry(times, delay, exceptions)：带参数的装饰器。失败且异常类型在 exceptions 里
-   就重试，总共尝试 times 次；全部失败时抛出【最后一次的原生异常】，不要包装。
-3. 两个装饰器都用 functools.wraps 保留原函数的 __name__ / __doc__。
+2. retry(times, delay, exceptions)：带参数的装饰器。失败且异常类型在 exceptions 中时重试，
+   共尝试 times 次；全部失败时抛出最后一次的原始异常，不包装。
+3. 两个装饰器都用 functools.wraps 保留原函数的 __name__ 与 __doc__。
 
 验收：uv run day02/python/decorators.py，全部断言通过。
-现在跑会抛 NotImplementedError —— 那就是给你填的地方。
 """
 
 import functools
@@ -21,7 +20,6 @@ def timer(func: Callable[..., Any]) -> Callable[..., Any]:
 
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
-        # raise NotImplementedError("TODO: 记开始时间 -> 调用 func -> 打印耗时 -> 返回结果")
         start = time.perf_counter()
         result = func(*args, **kwargs)
         end = time.perf_counter()
@@ -36,9 +34,9 @@ def retry(
     delay: float = 0.1,
     exceptions: tuple[type[BaseException], ...] = (Exception,),
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    """带参数的装饰器：总共尝试 times 次，每次失败后等 delay 秒。
+    """带参数的装饰器：共尝试 times 次，每次失败后等待 delay 秒。
 
-    注意这是【三层】函数：retry(...) 先返回 decorator，decorator 再包住 func。
+    这是三层函数：retry(...) 先返回 decorator，decorator 再包装 func。
     """
     if times < 1:
         raise ValueError("times 必须 >= 1")
@@ -46,7 +44,6 @@ def retry(
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            # raise NotImplementedError("TODO: 循环 times 次，全部失败时抛最后一次的原始异常")
             for attempt in range(times):
                 try:
                     return func(*args, **kwargs)
@@ -72,7 +69,7 @@ if __name__ == "__main__":
         return "ok"
 
     assert flaky() == "ok"
-    assert len(calls) == 3, "应该正好尝试 3 次"
+    assert len(calls) == 3, "应正好尝试 3 次"
 
     calls.clear()
 
@@ -84,10 +81,10 @@ if __name__ == "__main__":
     try:
         always_fail()
     except ValueError as exc:
-        assert str(exc) == "总是失败", "应该抛最后一次的原生异常，不是包装后的"
+        assert str(exc) == "总是失败", "应抛出最后一次的原始异常，而不是包装后的"
         assert len(calls) == 2
     else:
-        raise AssertionError("应该抛异常")
+        raise AssertionError("应抛出异常")
 
     @timer
     def slow() -> int:
@@ -95,9 +92,9 @@ if __name__ == "__main__":
         return 42
 
     assert slow() == 42
-    assert slow.__name__ == "slow", "没写 functools.wraps 的话这里会变成 wrapper"
+    assert slow.__name__ == "slow", "未写 functools.wraps 时这里会变成 wrapper"
 
-    # 想一想：把 @timer 放在 @retry 里面 vs 外面，timer 各会打印几次？
-    # 自己加 print 验证，答案写进今晚的笔记。
+    # 思考：把 @timer 放在 @retry 内层与外层，timer 分别打印几次？
+    # 自行加 print 验证，结论写进当日笔记。
 
     print("decorators: 全部通过")
