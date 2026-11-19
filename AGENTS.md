@@ -23,7 +23,7 @@
 
 | 阶段 | 天数 | 状态 |
 |---|---|---|
-| 1 | Day 1-5 | 进行中 |
+| 1 | Day 1-5 | 完成 |
 | 2 | Day 6-8 | 未开始 |
 | 3 | Day 9-13 | 未开始 |
 | 4 | Day 14-20 | 未开始 |
@@ -35,8 +35,9 @@
 - **Day 2**（2026-11-14）函数是一等公民：`day02/python/` 下 `decorators.py`、`generators.py`、`context.py`、`typing_practice.py`、`tool_schema.py`（主产出，Pydantic → OpenAI tools schema）；`notes/day02/python-functions-typing.md`，含两幅 archify 交互图（`notes/day02/assets/`）。验收：15 题诊断全部批改，五脚本运行通过。
 - **Day 3**（2026-11-17）asyncio 并发：`day03/python/` 下 `00_trace.py`（协程状态机实测）、`01_coroutine.py`~`04_resources.py`（概念/调度/控制/资源四层）、`05_fetch.py`（主产出，httpx 并发调 5 个 API）；`day03/README.md`（知识树）、`notes/day03/asyncio-concurrency.md`，含三幅 archify 交互图。验收：五个脚本全部跑通，ruff/mypy 全绿。
 - **Day 4**（2026-11-18）pytest：`day04/python/` 下 `01_fixtures_test.py`、`02_parametrize_test.py`、`03_mock_test.py`、`test_fetch.py`（主产出，给 Day 3 写 5 个测试）；`day04/README.md`（知识树）、`notes/day04/pytest.md`。验收：34 个测试全绿，ruff/format/mypy/构建全过。
+- **Day 5**（2026-11-19）mini agent loop：`day05/python/` 下 `01_messages.py`（消息协议）、`02_registry.py`（工具注册表与 `@tool` 装饰器）、`mini_loop.py`（主产出，脚本化假模型驱动的完整循环）；`day05/README.md`（知识树）、`notes/day05/mini-agent-loop.md`。验收：三条验收断言全过（单工具、只读并发、未知工具回填、步数上限），质量门五步全绿。阶段 1 完成。
 
-进行中的天：暂无。
+进行中的天：暂无。阶段 1（Day 1-5）全部完成，下一步是阶段 2 的 Day 6（function calling）。
 
 ## 已澄清的认知（避免重复出错）
 
