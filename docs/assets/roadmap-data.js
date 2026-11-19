@@ -51,7 +51,7 @@ window.ROADMAP = {
         { day: "Day 2", task: "装饰器 / 生成器 / with / typing / Pydantic v2", out: "一套 Pydantic Tool schema", done: true },
         { day: "Day 3", task: "asyncio：event loop、Task、gather、Semaphore、timeout", out: "httpx 并发调 5 个 API（带超时与并发上限）", done: true },
         { day: "Day 4", task: "pytest：fixture、参数化、mock、覆盖率", out: "给 Day 3 代码写 5 个测试" },
-        { day: "Day 5", task: "mini agent loop：解析 → 路由 → 执行 → 回填 → 终止", out: "mini_loop.py（不用真 LLM）" },
+        { day: "Day 5", task: "mini agent loop：解析 → 路由 → 执行 → 回填 → 终止", out: "mini_loop.py（不用真 LLM）", done: true },
       ],
     },
     {
