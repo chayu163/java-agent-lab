@@ -26,12 +26,12 @@ docs/content/
 # 本机编辑器配置（解释器选择、调试配置随机器而异，不入库）
 .vscode/
 
-# archify 候选稿与回执（成品 HTML 在 notes/dayNN/assets/ 下）
+# archify 候选稿与回执（成品 HTML 在 notes/phase*/dayNN/assets/ 下）
 .archify/
-notes/day*/assets/*.finalize.json
-notes/day*/assets/*.finalize-summary.json
-notes/day*/assets/*.browser-check.json
-notes/day*/assets/*.delivery.json
+notes/phase*/day*/assets/*.finalize.json
+notes/phase*/day*/assets/*.finalize-summary.json
+notes/phase*/day*/assets/*.browser-check.json
+notes/phase*/day*/assets/*.delivery.json
 
-# archify 出图的临时工作目录（成品已复制到 notes/dayNN/assets/）
+# archify 出图的临时工作目录（成品已复制到 notes/phase*/dayNN/assets/）
 .archify/

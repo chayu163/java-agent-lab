@@ -4,18 +4,20 @@
 
 ## 项目是什么
 
-`java-agent-lab` 是 Java 开发者补齐 Python + Agent 技术栈的学习仓库，执行《AI Agent 工程 30 天学习计划》（2026-11-13 ~ 2026-12-12）。每个 `dayNN/` 是一次独立练习，根目录是唯一的 uv 项目，所有天共享一个 `.venv`。
+`java-agent-lab` 是 Java 开发者补齐 Python + Agent 技术栈的学习仓库，执行《AI Agent 工程 30 天学习计划》（2026-11-13 ~ 2026-12-12）。代码按阶段归在 `phaseN/dayNN/` 下，根目录是唯一的 uv 项目，所有天共享一个 `.venv`。
 
 ## 目录约定
 
-- `dayNN/README.md`：当天知识树（从 day03 起），讲结构与取舍，不是题解
-- `dayNN/java/`：对照阅读用的 Java 原版
-- `dayNN/python/`：Python 练习与当天产出
-- `notes/dayNN/`：当天笔记（markdown，Obsidian 可直接打开：frontmatter + callout + 双链）
-- `notes/dayNN/assets/`：笔记引用的交互图（archify 生成的独立 HTML），构建时拷进站点
+- `phaseN/dayNN/README.md`：当天知识树（从 day03 起），讲结构与取舍，不是题解
+- `phaseN/dayNN/java/`：对照阅读用的 Java 原版
+- `phaseN/dayNN/python/`：Python 练习与当天产出
+- `notes/phaseN/dayNN/`：当天笔记（markdown，Obsidian 可直接打开：frontmatter + callout + 双链）
+- `notes/phaseN/dayNN/assets/`：笔记引用的交互图（archify 生成的独立 HTML），构建时拷进站点
 - `research/YYYY-MM-DD/`：岗位调研、学习计划、路线图等决策依据，按日期分目录，重做调研不覆盖旧结论
 - `tools/build_site.py`：站点内容构建脚本
 - `docs/`：GitHub Pages 站点（纯静态，无框架）；`docs/content/` 是生成物，不入库
+
+目录名里的 `dayNN` 编号在仓库内全局唯一，站点索引与 `roadmap-data.js` 的 `days` 数组都按它匹配，新增阶段只建 `phaseN/` 目录、不改编号。
 
 ## 进度
 
@@ -31,11 +33,11 @@
 
 已完成的天：
 
-- **Day 1**（2026-11-13）Python 迁跃：`day01/python/order.py`（批注版）、`order_bean.py`（Java bean 风格标准版）、`day01/python/demos.py`（十项语义差异的可运行演示）、`notes/day01/java-python-diff.md`。验收通过：12 项自测清单全勾。
-- **Day 2**（2026-11-14）函数是一等公民：`day02/python/` 下 `decorators.py`、`generators.py`、`context.py`、`typing_practice.py`、`tool_schema.py`（主产出，Pydantic → OpenAI tools schema）；`notes/day02/python-functions-typing.md`，含两幅 archify 交互图（`notes/day02/assets/`）。验收：15 题诊断全部批改，五脚本运行通过。
-- **Day 3**（2026-11-17）asyncio 并发：`day03/python/` 下 `00_trace.py`（协程状态机实测）、`01_coroutine.py`~`04_resources.py`（概念/调度/控制/资源四层）、`05_fetch.py`（主产出，httpx 并发调 5 个 API）；`day03/README.md`（知识树）、`notes/day03/asyncio-concurrency.md`，含三幅 archify 交互图。验收：五个脚本全部跑通，ruff/mypy 全绿。
-- **Day 4**（2026-11-18）pytest：`day04/python/` 下 `01_fixtures_test.py`、`02_parametrize_test.py`、`03_mock_test.py`、`test_fetch.py`（主产出，给 Day 3 写 5 个测试）；`day04/README.md`（知识树）、`notes/day04/pytest.md`。验收：34 个测试全绿，ruff/format/mypy/构建全过。
-- **Day 5**（2026-11-19）mini agent loop：`day05/python/` 下 `01_messages.py`（消息协议）、`02_registry.py`（工具注册表与 `@tool` 装饰器）、`mini_loop.py`（主产出，脚本化假模型驱动的完整循环）；`day05/README.md`（知识树）、`notes/day05/mini-agent-loop.md`。验收：三条验收断言全过（单工具、只读并发、未知工具回填、步数上限），质量门五步全绿。阶段 1 完成。
+- **Day 1**（2026-11-13）Python 迁跃：`phase1/day01/python/order.py`（批注版）、`order_bean.py`（Java bean 风格标准版）、`phase1/day01/python/demos.py`（十项语义差异的可运行演示）、`notes/phase1/day01/java-python-diff.md`。验收通过：12 项自测清单全勾。
+- **Day 2**（2026-11-14）函数是一等公民：`phase1/day02/python/` 下 `decorators.py`、`generators.py`、`context.py`、`typing_practice.py`、`tool_schema.py`（主产出，Pydantic → OpenAI tools schema）；`notes/phase1/day02/python-functions-typing.md`，含两幅 archify 交互图（`notes/phase1/day02/assets/`）。验收：15 题诊断全部批改，五脚本运行通过。
+- **Day 3**（2026-11-17）asyncio 并发：`phase1/day03/python/` 下 `00_trace.py`（协程状态机实测）、`01_coroutine.py`~`04_resources.py`（概念/调度/控制/资源四层）、`05_fetch.py`（主产出，httpx 并发调 5 个 API）；`phase1/day03/README.md`（知识树）、`notes/phase1/day03/asyncio-concurrency.md`，含三幅 archify 交互图。验收：五个脚本全部跑通，ruff/mypy 全绿。
+- **Day 4**（2026-11-18）pytest：`phase1/day04/python/` 下 `01_fixtures_test.py`、`02_parametrize_test.py`、`03_mock_test.py`、`test_fetch.py`（主产出，给 Day 3 写 5 个测试）；`phase1/day04/README.md`（知识树）、`notes/phase1/day04/pytest.md`。验收：34 个测试全绿，ruff/format/mypy/构建全过。
+- **Day 5**（2026-11-19）mini agent loop：`phase1/day05/python/` 下 `01_messages.py`（消息协议）、`02_registry.py`（工具注册表与 `@tool` 装饰器）、`mini_loop.py`（主产出，脚本化假模型驱动的完整循环）；`phase1/day05/README.md`（知识树）、`notes/phase1/day05/mini-agent-loop.md`。验收：三条验收断言全过（单工具、只读并发、未知工具回填、步数上限），质量门五步全绿。阶段 1 完成。
 
 进行中的天：暂无。阶段 1（Day 1-5）全部完成，下一步是阶段 2 的 Day 6（function calling）。
 

@@ -21,15 +21,17 @@ Java 开发者补齐 Python + Agent 技术栈的 30 天学习仓库。路线基�
 ## 目录
 
 ```text
-dayNN/
-├── README.md   # 当天知识树（从 day03 起）
-├── java/       # 对照阅读用的 Java 原版
-└── python/     # Python 练习与当天产出
+phaseN/
+└── dayNN/
+    ├── README.md   # 当天知识树（从 day03 起）
+    ├── java/       # 对照阅读用的 Java 原版
+    └── python/     # Python 练习与当天产出
 
 notes/
-└── dayNN/
-    ├── *.md      # 当天笔记（Obsidian 可直接打开）
-    └── assets/   # 笔记引用的交互图，构建时随笔记一起发布
+└── phaseN/
+    └── dayNN/
+        ├── *.md      # 当天笔记（Obsidian 可直接打开）
+        └── assets/   # 笔记引用的交互图，构建时随笔记一起发布
 
 research/
 └── YYYY-MM-DD/   # 调研、计划、路线图，按日期归档，重做不覆盖旧结论
@@ -40,13 +42,15 @@ tools/
 docs/             # GitHub Pages 站点源码；content/ 是生成物，不入库
 ```
 
+`dayNN` 编号在仓库内全局唯一；阶段 5 结束时会得到 `phase1/` 到 `phase5/` 五个目录。
+
 根目录是唯一的 uv 项目，30 天共享一个 `.venv`；依赖统一在 `pyproject.toml` 声明。
 
 ## 常用命令
 
 ```bash
 uv sync --group docs              # 首次，或改了依赖之后
-uv run day03/python/05_fetch.py   # 跑当天脚本
+uv run phase1/day03/python/05_fetch.py   # 跑当天脚本
 uv run pytest -q                  # 跑全部测试，从仓库根收集
 ```
 

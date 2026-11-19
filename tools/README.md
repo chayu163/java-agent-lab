@@ -9,9 +9,9 @@
 
 | 站点区块 | 来源 |
 |---|---|
-| 笔记 | `notes/dayNN/*.md` |
-| 笔记配图 | `notes/dayNN/assets/*.html`（原样拷贝） |
-| 代码 | `dayNN/python/*.py`、`dayNN/java/*.java` |
+| 笔记 | `notes/phase*/dayNN/*.md` |
+| 笔记配图 | `notes/phase*/dayNN/assets/*.html`（原样拷贝） |
+| 代码 | `phase*/dayNN/python/*.py`、`phase*/dayNN/java/*.java` |
 | 调研 | `research/**/*.md` |
 
 日常只需要正常写笔记和代码，推上去由 CI 重建，站点自动跟上。
@@ -41,7 +41,7 @@ uv run python -m http.server 8765 --directory docs
 - 表格、代码围栏、行内代码
 
 **mermaid 代码围栏不做服务端渲染**，站点上以源码块显示；Obsidian 里能正常画图。
-需要交互图时用 `notes/dayNN/assets/` 下的 archify HTML，笔记里写成相对链接。
+需要交互图时用 `notes/phase*/dayNN/assets/` 下的 archify HTML，笔记里写成相对链接。
 
 代码高亮是自写的正则分词器（Python / Java），不引第三方库。
 
@@ -54,7 +54,7 @@ docs/
 ├── assets/app.js         交互层
 ├── assets/roadmap-data.js  路线图节点、分带、每日计划（手写内容）
 └── content/              构建产物，gitignore
-    ├── notes/dayNN/      渲染后的笔记正文 + assets/ 里的配图
+    ├── notes/dayNN/      渲染后的笔记正文 + assets/ 里的配图（站点索引键仍是 dayNN）
     ├── code/dayNN/       高亮后的代码片段
     ├── research/         调研与计划
     └── manifest.json     站点索引，前端据此知道有哪些内容

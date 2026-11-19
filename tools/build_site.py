@@ -464,7 +464,8 @@ def reset_content_dir() -> None:
 
 
 def build_notes(manifest: dict[str, Any]) -> None:
-    for path in sorted(NOTES_DIR.glob("day*/*.md")):
+    # 笔记在 notes/phase*/dayNN/ 下；day 名作为站点索引键，与 roadmap-data.js 的 days 数组对应
+    for path in sorted(NOTES_DIR.glob("phase*/day*/*.md")):
         day = path.parent.name
         meta, rendered = render_markdown(path.read_text(encoding="utf-8"))
         target_dir = CONTENT_DIR / "notes" / day
@@ -492,7 +493,7 @@ def copy_note_assets() -> None:
 
     只拷会展示的资源；finalize / browser-check 那些回执 JSON 属于构建证据，不上站点。
     """
-    for assets in sorted(NOTES_DIR.glob("day*/assets")):
+    for assets in sorted(NOTES_DIR.glob("phase*/day*/assets")):
         if not assets.is_dir():
             continue
         target = CONTENT_DIR / "notes" / assets.parent.name / "assets"
@@ -504,7 +505,8 @@ def copy_note_assets() -> None:
 
 
 def build_code(manifest: dict[str, Any]) -> None:
-    for day_dir in sorted(ROOT.glob("day*")):
+    # 代码在 phase*/dayNN/ 下；day 名作为站点索引键，与 roadmap-data.js 的 days 数组对应
+    for day_dir in sorted(ROOT.glob("phase*/day*")):
         if not day_dir.is_dir():
             continue
         day = day_dir.name
@@ -562,7 +564,7 @@ def check_roadmap_coverage() -> list[str]:
     if not ROADMAP_JS.exists():
         return []
     referenced = set(re.findall(r'"(day\d{2})"', ROADMAP_JS.read_text(encoding="utf-8")))
-    written = {path.name for path in NOTES_DIR.glob("day[0-9][0-9]") if path.is_dir()}
+    written = {path.name for path in NOTES_DIR.glob("phase*/day[0-9][0-9]") if path.is_dir()}
     return [
         f"notes/{day} 有内容，但 roadmap-data.js 没有引用它，站点上会看不到"
         for day in sorted(written - referenced)
