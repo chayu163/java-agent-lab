@@ -1,5 +1,5 @@
 ---
-title: Day 2 · 函数是一等公民
+title: Day 2 · 函数、迭代与类型边界
 date: 2026-11-14
 day: 2
 phase: 1
@@ -10,346 +10,193 @@ tags:
 status: done
 ---
 
-# Day 2 · 函数是一等公民
+# Day 2 · 函数、迭代与类型边界
 
-**今天的四个概念是一条线**：Python 把「函数」和「类型」当值来用。Java 的两个前提——方法不是值、类型由编译器强制——在这里全都不成立。
+## 学完后应能
 
-| 产出 | 内容 |
-|---|---|
-| `decorators.py` | 手写 `@timer`、带参 `@retry` |
-| `generators.py` | `iter_chunks`、`take` |
-| `context.py` | `Timer`、`Suppress`、`timed` |
-| `typing_practice.py` | `Protocol`、`FakeLLMClient`、`Box[T]` |
-| `tool_schema.py` | **主产出**：Pydantic → OpenAI tools schema |
+- 追踪装饰器在定义和调用两个时刻分别做了什么。
+- 解释生成器何时执行、如何暂停，以及上下文管理器如何保证清理。
+- 区分类型注解、静态检查、运行时校验，并读懂本仓库的 Pydantic 工具 schema 转换。
 
-> [!example] 两张图
-> [装饰器：定义时替换一次，调用时包装每次](assets/decorator-timing.html) · [with 与 @contextmanager](assets/contextmanager-with.html)（本地 HTML，浏览器打开）
->
-> 正文里也给了一份 ASCII 版，不打开 HTML 也能读。
+当天代码分为四个练习和一个主产出：[装饰器](../../../phase1/day02/python/decorators.py)、[生成器](../../../phase1/day02/python/generators.py)、[上下文管理器](../../../phase1/day02/python/context.py)、[typing](../../../phase1/day02/python/typing_practice.py)、[工具 schema](../../../phase1/day02/python/tool_schema.py)。图示：[装饰器时序](assets/decorator-timing.html)、[`with` 执行过程](assets/contextmanager-with.html)。
 
----
+## 1. 装饰器在定义函数时替换名称
 
-## 0 · 先破一个错觉
+```python
+from functools import wraps
 
-**结论**：表面上与 Java 相似，是因为只对上了「意图」；差异集中在「保证机制」上。
 
-```text
-┌─ 真对应 ──────────────── 意图和机制都相同，可以放心迁移 ─┐
-│  类 / 继承 / 方法                                       │
-│  __eq__ / __hash__  ↔  equals / hashCode                │
-│  __repr__           ↔  toString                         │
-│  @property          ↔  getter                           │
-│  Generic[T]         ↔  Box<T>                           │
-└─────────────────────────────────────────────────────────┘
-┌─ 假对应 ──────────────── 长得像，机制不同   ★ 最危险 ────┐
-│  Protocol   ↔  interface                                │
-│  装饰器      ↔  注解 / AOP                               │
-│  Pydantic   ↔  Bean Validation                          │
-│  dataclass  ↔  record                                   │
-│  with       ↔  try-with-resources                       │
-│  生成器      ↔  Iterator                                 │
-└─────────────────────────────────────────────────────────┘
-┌─ 没有对应 ─────────────── 必须新学 ──────────────────────┐
-│  GIL · 可变默认参数 · 鸭子类型 · 变量没有类型              │
-└─────────────────────────────────────────────────────────┘
+def decorate(function):
+    @wraps(function)
+    def wrapper(*args, **kwargs):
+        return function(*args, **kwargs)
+
+    return wrapper
+
+
+@decorate
+def work() -> str:
+    return "done"
+
+# 等价于
+def work() -> str:
+    return "done"
+
+
+work = decorate(work)
 ```
 
-> [!important] 差别的核心
-> **Java 是「不合法就编译不过」，Python 是「不合法也能运行，直到执行到那一行才失败」。**
-> 编译器负责的约束，在 Python 中需要自行构建：注解 + mypy + Pydantic + 测试。
-
----
-
-## 1 · 装饰器
-
-**结论**：`@deco` 就是 `f = deco(f)`，发生在**定义时**，不是调用时。
-
-### 1.1 两个时刻，别混
-
-| 时刻 | 发生什么 | 次数 |
-|---|---|---|
-| **导入时** | 创建原函数 A → 调 `timer(A)` → 得到 W → 名字 `slow` 改指向 W | **1 次** |
-| **每次调用** | 进入 W → 计时 → 调 A → 返回 | **N 次** |
-
-```text
-【导入时】
-  def slow(): ...  ──创建──>  A
-  @timer           ──调用──>  timer(A)          ← timer 函数体跑 1 次
-                                 └──返回──> W（闭包持有 A）
-  名字 slow ──改指向──> W                       A 失去名字
-
-【每次 slow()】
-  slow() ──实际是──> W() ──计时──> A() ──返回──>
+```mermaid
+sequenceDiagram
+    participant Def as 执行 def
+    participant Deco as decorate
+    participant Wrap as wrapper
+    participant Func as 原函数
+    Def->>Deco: decorate(work)
+    Deco-->>Def: 返回 wrapper
+    Def->>Def: 名称 work 绑定到 wrapper
+    Note over Wrap,Func: 每次调用时 wrapper 再调用原函数
+    Wrap->>Func: 调用原函数(args)
+    Func-->>Wrap: 返回结果
 ```
 
-> [!danger] 最容易答错的一题
-> 调 10 次：**`timer` 跑 1 次，`wrapper` 跑 10 次。**
-> `timer` 只参与过「把 A 换成 W」那一次。
+执行 `def` 语句时，Python 创建函数对象并调用装饰器表达式，函数名称随后绑定到装饰器返回的对象。模块顶层定义通常发生在导入期间；在函数内部定义时，装饰器会在该 `def` 语句执行时运行。
 
-### 1.2 带参数的装饰器必然三层
+调用次数与装饰器工厂运行次数不同：`@timer` 装饰一个函数时，`timer` 执行一次；返回的 `wrapper` 会在每次调用时执行。带参数的 `@retry(3)` 多一层配置函数，因为配置先于被装饰函数传入。
 
-| 层 | 名字 | 吃什么 | 什么时候执行 |
-|---|---|---|---|
-| 1 | `retry` | 配置 `times` / `delay` | `@retry(3)` 求值时 |
-| 2 | `decorator` | 被装饰的函数 `func` | `@` 生效时 |
-| 3 | `wrapper` | 调用参数 `*args` | 每次调用 |
+`functools.wraps` 将被包装函数的常用元数据设置到 wrapper，并设置 `__wrapped__`。它不会让 wrapper 的代码签名自动变成原函数的 Python 参数列表；`inspect.signature` 等工具可沿 `__wrapped__` 读取原签名。
 
-**为什么非要第 2 层**：`retry(3)` 执行的那一刻，`flaky` 还没被传进来。所以它必须返回一个“还欠一个函数参数”的东西。
+注册型装饰器如果只负责把函数登记到工具表，通常应返回原函数。否则模块中的函数名和注册表中的对象可能不同，调用路径也会不同。
 
-| 写法 | 层数 |
-|---|---|
-| `@timer` | 2 层 |
-| `@retry(3)` | 3 层 |
+## 2. 生成器把执行状态保存在迭代器中
 
-### 1.3 `functools.wraps` 救什么
+调用含有 `yield` 的函数会创建生成器对象，函数体尚未运行。`next()`、`for`、`list()` 等迭代操作才会推进它。
 
-它复制 `__name__` / `__doc__` / `__module__` / `__qualname__` / `__annotations__`，并设 `__wrapped__`。
+```python
+from collections.abc import Iterator
 
-| 不写的后果 | 具体表现 |
-|---|---|
-| 日志 / 报错 | 所有被装饰函数的 `__name__` 都叫 `"wrapper"` |
-| pytest | 报告全是 `wrapper PASSED` |
-| FastAPI | 路由名和文档标题全错 |
-| 注册表 | 按 `wrapper.__name__` 注册会互相覆盖成一条 |
 
-> [!warning] 注册型装饰器要 `return fn`
-> ```python
-> def tool(fn):
->     TOOLS[fn.__name__] = fn
->     return fn        # 不包装
-> ```
-> `return wrapper` 会让同一份逻辑有两个入口：注册表里是裸函数，模块名上是 wrapper。wrapper 里加的校验，从注册表调的路径全绕过。
+def values() -> Iterator[int]:
+    print("开始")
+    yield 1
+    print("继续")
+    yield 2
 
----
 
-## 2 · 生成器
-
-**结论**：调用返回迭代器，`next()` 才推进；函数体在调用时执行 **0 行**。
-
-### 2.1 六个问题一次答完
-
-| 问题 | 答案 |
-|---|---|
-| 调用时执行几行 | **0 行** |
-| 靠什么推进 | `next()` / `for` / `list()` |
-| 走完之后 | 抛 `StopIteration` |
-| 能回退吗 | 不能，一次性 |
-| `-> Iterator[str]` 指 | **元素的类型**，不是返回值类型 |
-| `return x` 会怎样 | 只结束迭代，`x` 进 `StopIteration.value`，消费者拿不到 |
-
-### 2.2 生命周期
-
-```text
-调用 iter_chunks("abcdefg", 3)
-        │
-        ▼
-   <generator object>            ← 函数体执行 0 行
-        │
-    next() ▼
-   ┌───────────────────────┐
-   │ 执行到 yield "abc"     │──> 返回 "abc"，挂起
-   └───────────────────────┘     i 原封不动留在栈帧里
-    next() ▼
-   ┌───────────────────────┐
-   │ 从 yield 下一行继续     │──> 返回 "def"，挂起
-   └───────────────────────┘
-    next() ▼
-   ┌───────────────────────┐
-   │ 函数体执行完           │──> StopIteration
-   └───────────────────────┘
+items = values()  # 尚未打印
+print(next(items))  # 打印“开始”，然后得到 1
 ```
 
-`list()` / `for` / `take()` 都是**消费者**，做的是同一件事：`iter(x)` → 反复 `next()` → 遇 `StopIteration` 停。所以 `list(gen)` 不是“一次执行完”，是 `list()` **逼着它跑完**。
-
-> [!note] Java 对照
-> `Iterator<String>` 中，迭代器本身不是 `String`，`next()` 才返回元素。生成器同理。
-> 区别在于：Java 的 `Iterator` 状态是手写的游标；生成器的状态保存在栈帧中，无需手动维护。
-
----
-
-## 3 · `with` 与上下文管理器
-
-**结论**：`with` 认的是**协议**（有 `__enter__` 和 `__exit__`），不是类。
-
-### 3.1 三个方法的时机
-
-| 时机 | 调用 | 备注 |
-|---|---|---|
-| `Foo()` | `__init__` | `with` 不管这个 |
-| 进入 | `__enter__` | 返回值绑定给 `as` 后面的名字 |
-| 块内 | 业务代码 | |
-| 离开 | `__exit__(exc_type, exc, tb)` | 正常结束也调、抛异常也调；返回 `True` 才吞异常 |
-
-### 3.2 语法 vs 库函数
-
-| | `with` | `@contextmanager` |
-|---|---|---|
-| 是什么 | **语言关键字** | **标准库里的普通函数** |
-| 从哪来 | 原生，不用 import | `from contextlib import contextmanager` |
-| 接收 | 一个管理器对象 | 一个生成器函数 |
-| 返回 | — | **工厂函数**，调用它才得到管理器对象 |
-
-```text
-定义时：@contextmanager 作用于 timed → timed 变成工厂函数
-调用时：timed("x")      → 管理器对象（有 __enter__ / __exit__）
-        __enter__       → next(gen) 推进到 yield
-        __exit__        → next(gen) 从 yield 之后继续
+```mermaid
+stateDiagram-v2
+    [*] --> Created: 调用 values()
+    Created --> Running: next() / for
+    Running --> Suspended: yield 一个元素
+    Suspended --> Running: 再次迭代
+    Running --> Closed: 函数结束或 return
+    Closed --> [*]
 ```
 
-**`yield` 的位置就是分界线**：之前是 `__enter__` 的范围，之后是 `__exit__` 的范围。
+生成器是一次性迭代器。推进到 `yield` 后会暂停，之后从下一条语句恢复。`Iterator[str]` 中的 `str` 描述迭代产出的元素类型。
 
-> [!danger] `Suppress` 要用 `issubclass`，不能用 `in`
-> `except ValueError:` 是 **issubclass** 语义，能捕获 `UnicodeDecodeError` 这种子类；
-> `exc_type in (ValueError,)` 是**相等**语义，子类会漏掉。
->
-> ```python
-> if exc_type is None:
->     return False
-> return issubclass(exc_type, self.exc_types)
-> ```
+生成器中的 `return value` 结束迭代。`for` 和 `list()` 只观察到迭代结束，不会把该值当成元素；手动调用 `next()` 并捕获 `StopIteration` 时，可以读取 `exc.value`。
 
----
+本仓库的 `iter_chunks` 定义 `size` 为最大块长度，`overlap` 为相邻块重叠的字符数。对于 `"abcdefg"`、`size=3`、`overlap=1`，结果是 `abc`、`cde`、`efg`。最后一块覆盖文本末尾后就应停止，不能再从重叠区域产生重复尾块。由于它是生成器，参数检查也在第一次迭代时执行，而不是调用函数时执行。
 
-## 4 · typing
+## 3. 上下文管理器让进入与清理配对
 
-**结论**：注解在运行时**完全不生效**，只有默认值是真的。
+`with manager as value` 使用的是上下文管理器协议。同步协议调用 `__enter__` 和 `__exit__`；即使 `with` 块抛出异常，`__exit__` 仍会运行。只有 `__exit__` 返回真值时，异常才会被抑制。
 
-### 4.1 生效范围
-
-| 写法 | mypy | 运行时 |
-|---|---|---|
-| `a: int` | 要求 int | **不生效**，传 `"abc"` 照样跑 |
-| `b: list[str] \| None = None` | 类型 + 可空 | **只有 `= None` 生效** |
-| `-> dict[str, Any]` | 返回类型 | **不生效** |
-
-> [!note] `| None` 表达「可空」，不表达「有默认值」
-> 让它可选的是默认值。`x: int | None` 没默认值时仍然必填，只是允许显式传 `None`。
-
-### 4.2 三个容易混的对照
-
-| 概念 | Java | Python | 差别 |
-|---|---|---|---|
-| 任意类型 | `Object` | `Any` | `Object` 是所有类的父类；`Any` 是**关闭检查**，什么都能调，运行时才炸 |
-| 接口 | `interface` | `Protocol` | 名义 vs **结构化**：有方法就算实现，不用 `implements` |
-| 泛型 | `Box<T>` | `Box[T]` | 都是**擦除**的，运行时拿不到 `T` |
-
-验证 `Protocol` 是结构化检查：把实现类的 `complete` 改个名，mypy 立刻报错——它看的是**形状**。
-
-> [!tip] 为什么 `FakeLLMClient` 重要
-> Day 4 写测试不能真调 LLM，今天这个假实现到时候直接复用。
-
----
-
-## 5 · Pydantic → JSON Schema
-
-**结论**：出现「有名字的类型」就进 `$defs` 留 `$ref`；模型 API 不认 `$ref`，必须递归内联。
-
-### 5.1 什么时候产生 `$ref`
-
-| 字段写法 | 结果 |
-|---|---|
-| `x: str` | 内联 |
-| `y: Literal["a", "b"]` | 内联 |
-| `z: list[int]` | 内联 |
-| `a: A`（嵌套 `BaseModel`） | **`$ref`** |
-| `p: TicketPriority`（`Enum`） | **`$ref`** |
-
-判断标准只有一条：**这个名字是否由 `class` 定义。**
-
-### 5.2 内联前后
-
-```text
-model_json_schema()：
-{
-  "$defs": { "A": {...}, "TicketPriority": {...} },   ← 有名字的收在这里
-  "properties": {
-    "a": {"$ref": "#/$defs/A"},                        ← 原地留指针
-    "p": {"$ref": "#/$defs/TicketPriority"}
-  }
-}
-
-内联后：
-{
-  "properties": {
-    "a": {...A 的实际内容...},                          ← 指针被替换
-    "p": {...枚举的实际内容...}
-  }
-}
+```python
+with open("data.txt", encoding="utf-8") as file:
+    text = file.read()
 ```
 
-指针语法 `#/$defs/A` 是 JSON Pointer：`#` = 文档根，`/` 逐层下钻。等于「从根出发，进 `$defs`，取 `A`」。
+`contextlib.contextmanager` 是标准库装饰器，不是语言语法。它把生成器函数转换成上下文管理器工厂：`yield` 之前的代码在进入时执行，之后的代码在退出时执行。
 
-### 5.3 三个细节
+```python
+import time
 
-| 点 | 说明 |
-|---|---|
-| 为什么内联 | `$ref` 是 JSON Schema 2020-12 特性，各家模型服务支持不一，摊平最保险 |
-| 为什么删 `title` | Pydantic 自动加的字段标题，OpenAI 不认，属于噪音 |
-| 为什么递归 | 展开出来的定义自身可能还带 `$ref`（A 引用 C） |
+from collections.abc import Iterator
+from contextlib import contextmanager
 
-> [!note] 递归路径为什么用 tuple
-> `(*stack, name)` 每次生成**新元组**，上一层原封不动，每个递归帧看到的是自己这条路径的历史。
-> 换成 list 的 `stack.append(name)`，所有帧共享同一个 list，回溯时分不清路径，会误报循环引用——这是 Day 1「可变默认参数只求值一次」的变体。
 
----
+@contextmanager
+def timed() -> Iterator[None]:
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        print(time.perf_counter() - start)
+```
 
-## 6 · 一页速查
+```mermaid
+sequenceDiagram
+    participant Caller as with 调用方
+    participant Manager as 上下文管理器
+    Caller->>Manager: __enter__
+    Manager-->>Caller: 返回资源
+    Caller->>Caller: 执行 with 块
+    alt 正常退出
+        Caller->>Manager: __exit__(None, None, None)
+    else 块内抛出异常
+        Caller->>Manager: __exit__(exc_type, exc, traceback)
+        Manager->>Manager: 异常在 yield 处重新抛入生成器
+    end
+    Manager->>Manager: finally 清理
+    Note over Caller,Manager: 未被上下文管理器抑制的异常继续向外传播
+```
 
-| 概念 | 一句话 | 陷阱 |
+块内异常会在 `yield` 位置重新抛进生成器。因此 `finally` 能在正常退出、异常和取消等控制流下执行清理。若要有意抑制某类异常，应显式捕获并处理，不要依赖含糊的返回值。
+
+本仓库的 `Suppress` 类检查异常类型的继承关系，所以使用 `issubclass(exc_type, self.exc_types)`。这与 `except ValueError` 能处理其子类的行为一致。
+
+## 4. 注解、静态检查与运行时校验
+
+Python 不会因为函数注解而自动拒绝错误实参。注解仍可能保存在 `__annotations__` 中，供 IDE、mypy、框架或运行时库读取。
+
+| 机制 | 何时工作 | 本仓库示例 |
 |---|---|---|
-| 装饰器 | `f = deco(f)`，定义时执行 | 以为 `deco` 每次调用都跑 |
-| 带参装饰器 | 3 层：配置 → 函数 → 调用 | 少写一层括号 |
-| `wraps` | 复制元信息到 wrapper | 不写则 `__name__` 全叫 wrapper |
-| 生成器 | 调用 0 行，`next` 推进 | 以为调用就执行 |
-| `return` in 生成器 | 只结束迭代，不产出值 | 当成“返回最后一块” |
-| `Iterator[str]` | 元素的类型 | 当成返回值类型 |
-| `with` | 认 `__enter__` / `__exit__` | 以为必须传类实例 |
-| `@contextmanager` | 标准库函数，非语法 | 以为它是语言内建 |
-| `__exit__` 返回 True | 吞掉异常 | 返回 `in` 判断，漏掉子类 |
-| 注解 | 运行时无效 | 以为 Python 会检查类型 |
-| `Any` | 关闭类型检查 | 当成 `Object` |
-| `Protocol` | 结构化匹配 | 去找 `implements` |
-| `$defs` / `$ref` | 有名字的自定义类型 | 以为基础类型也会产生 |
-| 内联 | 递归替换 + 删 `$defs`/`title` | 只替换一层，忘展开嵌套 |
-| 递归路径 | 用不可变 tuple 传 | 用 list 共享，误报循环 |
+| 类型注解 | 声明意图，可在运行时读取 | `str`、`T \| None` |
+| 静态检查 | 运行 mypy 时分析代码 | `Protocol`、`Generic[T]` |
+| 运行时校验 | 程序执行到校验逻辑时检查数据 | Pydantic `BaseModel` |
 
----
+`x: int | None` 允许显式传 `None`，不表示参数可以省略；能否省略由是否提供默认值决定。`Any` 会弱化静态检查，不是与 Java `Object` 完全等价的根类型。
 
-## 7 · 自测（合上笔记再答）
+`Protocol` 描述对象需要具备的接口形状。mypy 可以对静态类型进行结构化检查，不要求类显式继承该 Protocol。Python 运行时不会自动执行 mypy 检查；若要做有限的运行时结构检查，需要额外使用 `@runtime_checkable`，且它的检查范围有限。
 
-- [ ] 被 `@timer` 装饰的函数调 10 次，`timer` 和 `wrapper` 各执行几次？
-- [ ] 为什么 `@retry(3)` 必须三层，`@timer` 两层就够？
-- [ ] 不写 `functools.wraps` 会让 pytest 报告坏成什么样？
-- [ ] 生成器被调用时执行几行？靠什么推进？走完再 `next()` 会怎样？
-- [ ] `Iterator[str]` 里的 `str` 描述什么？
-- [ ] 生成器里的 `return value` 去哪了？
-- [ ] `with` 判断一个对象能不能用，依据是什么？
-- [ ] `@contextmanager` 是语法还是标准库函数？它返回什么？
-- [ ] `__exit__` 返回 `True` 意味着什么？
-- [ ] 注解运行时生效吗？什么情况例外？
-- [ ] `Any` 和 `Object` 的区别？
-- [ ] `Protocol` 为什么不需要继承？
-- [ ] 什么时候生成 `$defs`？举一个不会生成的反例。
-- [ ] 内联 `$ref` 时为什么要递归？
-- [ ] 装饰器和 Java 注解的机制差别，一句话说清。
+`Generic[T]` 让类型检查器在类和函数之间传递类型信息。它不等于 Java 编译器对泛型调用的静态约束，Python 运行时也不会普遍根据 `T` 拒绝不匹配的值。
 
----
+## 5. Pydantic schema 转换的范围
 
-## 8 · 明天
+Pydantic `BaseModel` 将字段声明用于运行时数据校验，也可以通过 `model_json_schema()` 生成 JSON Schema。它不是只有类型注解：Pydantic 会读取字段、默认值与 `Field` 约束，并在模型校验时执行对应规则。
 
-**[[Day 3 · asyncio 并发模型]]**：event loop、coroutine、Task、gather、Semaphore、timeout、async with
-产出：asyncio + httpx 并发调 5 个公共 API（带超时与并发上限）
+当天的 `OrderQueryArgs` 与 `TicketCreateArgs` 只有基础字段和 `Literal`，当前 Pydantic 输出不含 `$ref`。`tool_schema.py` 仍实现了教学用的引用展开，并用一个合成的嵌套 schema 验证：查找 `$defs` 中的简单本地引用，递归替换定义，再移除本项目选择过滤的键。该函数不是完整的 JSON Pointer 解析器。递归路径用于检测循环引用，缺少目标定义时抛出错误。
 
-> [!danger] 这里最先翻车
-> 带着「asyncio ≈ 线程池」的模型去写，会在三处出错：
->
-> 1. `time.sleep()` 在协程里**卡死整个事件循环**，必须用 `asyncio.sleep()`
-> 2. 协程不并行，是**交替**执行；任何时刻只有一个在跑
-> 3. 漏写 `await` 不报错，只会得到一个未被驱动的 coroutine 对象
->
-> 这和今天「生成器不自己跑」是同一个机制的两个面。
+```mermaid
+flowchart LR
+    model[Pydantic BaseModel] --> schema[model_json_schema()]
+    schema --> refs{含本地 $ref?}
+    refs -- 否 --> tool[组装 function.parameters]
+    refs -- 是 --> defs[查找 $defs 定义]
+    defs --> expand[递归展开引用]
+    expand --> clean[移除本项目选择过滤的键]
+    clean --> tool
+```
 
-> [!note] 前向链接
-> - 三层装饰器在 Day 6 的工具注册里会再出现
-> - `Protocol` 是 Day 4 写测试的接口约定
-> - `$ref` 内联是 Day 6 function calling 的直接前置
+这段转换展示“引用如何指向定义”和“递归遍历如何工作”。是否需要展开 `$ref`、哪些 schema 关键字可用，取决于目标 API 的协议版本与模式；不要把本练习的转换策略推广成所有模型服务的要求。调用真实 API 前，应以目标服务的 schema 文档和响应验证兼容性。
+
+## 自测
+
+- 装饰器工厂、decorator 和 wrapper 分别何时运行？
+- `functools.wraps` 处理了什么？哪些运行行为不会因此自动变化？
+- 调用生成器函数后，函数体是否已执行？谁负责推进它？
+- 生成器的 `return value` 是否会成为 `for` 循环中的最后一个元素？
+- `__exit__` 返回真值代表什么？`contextmanager` 中的异常会在哪里出现？
+- 类型注解、mypy 和 Pydantic 分别在哪个阶段产生作用？
+- `Protocol` 是否会在普通函数调用时自动检查对象？
+- 本仓库为什么展开 `$ref`？这是否意味着所有服务都要求展开？
+
+## 下一步
+
+Day 3 将使用 `asyncio` 组织多个 I/O 等待。生成器的“暂停后恢复”有助于理解协程，但生成器和协程的协议、调度方式并不相同。

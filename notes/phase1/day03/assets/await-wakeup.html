@@ -5640,12 +5640,12 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       <div class="card">
         <div class="card-header">
           <div class="card-dot cyan"></div>
-          <h3>as_completed 产出的是协程</h3>
+          <h3>Python 3.11 的 as_completed</h3>
         </div>
         <ul>
-          <li>每次迭代拿到一个一次性协程，不是 Task</li>
-          <li>必须再 await 一次才得到结果</li>
-          <li>直接返回迭代器而不消费它，什么也拿不到</li>
+          <li>普通迭代得到 awaitable，不是原始 Task</li>
+          <li>需要 await 它才能取得对应结果</li>
+          <li>Python 3.13 起也支持异步迭代</li>
         </ul>
       </div>
     </div>

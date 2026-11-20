@@ -26,10 +26,9 @@ class OrderState(Enum):
     CANCELLED = auto()
 
 
-# ❌ 只用了半截的 @dataclass：类里已有手写的 __init__，dataclass 不再生成 init，
-#    但 __repr__ 与 __eq__ 照样生成，于是 Order("A1") == Order("A1") 为 True，
-#    而 Java 未写 equals 时是 False。要么全用 dataclass + __post_init__，要么不用；
-#    这里按 Java bean 风格选后者。
+# 这里保留普通类的身份相等语义，与 Java 未重写 equals 的版本一致。
+# 若启用 dataclass 默认的 eq=True，即使手写 __init__，dataclass 仍会生成按字段比较的 __eq__。
+# dataclass 也可通过 eq=False 保留身份相等，因此是否使用取决于对象的比较语义。
 #
 # @dataclass
 # class Order:
@@ -54,7 +53,7 @@ class Order:
         id: str,
         # ❌ state: OrderState = None          触发 mypy 的隐式 Optional 报告
         # ❌ history: list[OrderState] = None  同上
-        # Python 的类型注解默认非空，允许 None 必须显式写成 X | None。
+        # 当前 mypy 配置要求把可空性写入注解；Python 运行时本身不会据此拒绝 None。
         state: OrderState | None = None,
         history: list[OrderState] | None = None,
     ) -> None:

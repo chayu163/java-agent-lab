@@ -2,7 +2,7 @@
 
 三层对应关系：
     Pydantic model    ->  JSON Schema          model_json_schema()
-    $defs + $ref      ->  复用与递归的表达方式，模型 API 不一定认
+    $defs + $ref      ->  JSON Schema 引用；目标 API 的支持范围需单独确认
     内联后的 schema    ->  OpenAI function calling 的 parameters 字段
 
 标注约定：★ 标注语法点，◆ 标注设计理由。首次阅读可跳过注释，查阅时再回看。
@@ -18,8 +18,8 @@ from pydantic import BaseModel, Field
 # ---------------------------------------------------------------------------
 # ★ import 分三段：标准库 → 第三方 → 本地，段间空行，ruff 按此顺序检查。
 #   typing 属于标准库，无需安装。
-#   Any 对应 Java 的 Object；Literal["a", "b"] 限定取值只能是其中之一。
-# ★ x: int = 10              带类型注解的赋值。注解在运行时完全不生效，仅供 mypy 与 IDE 使用。
+#   Any 让静态检查器不再约束该值，不等同于 Java 的 Object；Literal 描述允许的字面量集合。
+# ★ x: int = 10              带类型注解的赋值。Python 不强制该值为 int；注解仍可供工具和库读取。
 # ★ str | None               联合类型，表示可空，等价 typing.Optional[str]，对应 @Nullable String。
 # ★ list[str] / dict[str, Any] / tuple[str, ...]
 #                            泛型下标，Python 3.9+ 支持在内置类型上直接书写。
@@ -79,13 +79,11 @@ class TicketCreateArgs(BaseModel):
 # 2. schema 加工：展开 $ref、剥掉噪音键
 # ---------------------------------------------------------------------------
 #
-# $ref / $defs 只在一种情况下出现：schema 中出现「有名字的类型」（嵌套的 BaseModel、
-# Enum 类）时，Pydantic 把它提到顶层 $defs 存一份，原位置留一个
-# {"$ref": "#/$defs/类名"} 指针。普通类型（str、int、list[str]、Literal）直接内联，
-# 不产生 $ref。
+# Pydantic 可将可复用的嵌套定义放入 $defs，并在属性位置用 $ref 引用；简单基础字段通常直接内联。
+# 具体 schema 形状会受模型定义、Pydantic 版本与配置影响，不能只凭类型名称推断。
 #
-# 内联的理由：$ref 属于 JSON Schema 2020-12，各家模型服务的支持程度不一致，摊平成
-# 自足结构最稳妥；顺带剥掉 title（Pydantic 自动添加的字段标题）以节省 token。
+# 本练习只展开形如 #/$defs/Name 的本地引用，不实现完整 JSON Pointer 解析。
+# DROP_KEYS 是本项目的转换选择，不代表所有模型 API 都拒绝这些 schema 字段。
 
 # ★ {...} 是 set 字面量；空集合必须写作 set()，因为 {} 得到的是空 dict。
 #   成员判断 `key in DROP_KEYS` 为 O(1) 哈希查找。
@@ -185,5 +183,21 @@ TOOLS = [
 # ★ __name__ 在直接运行本文件时为 "__main__"，被 import 时为模块名。
 #   这段只在 `uv run phase1/day02/python/tool_schema.py` 下执行，对应 Java 的 main 方法。
 if __name__ == "__main__":
+    sample_with_ref = {
+        "$defs": {
+            "Address": {
+                "type": "object",
+                "properties": {"city": {"title": "City", "type": "string"}},
+            }
+        },
+        "properties": {"address": {"$ref": "#/$defs/Address"}},
+    }
+    expanded = inline_schema(sample_with_ref)
+    address_schema = expanded["properties"]["address"]
+    assert address_schema["properties"]["city"]["type"] == "string"
+    assert "$ref" not in json.dumps(expanded)
+    assert "$defs" not in expanded
+    assert "title" not in json.dumps(expanded)
+
     # ★ ensure_ascii=False 让中文原样输出，indent=2 生成带缩进的 JSON。
     print(json.dumps(TOOLS, ensure_ascii=False, indent=2))

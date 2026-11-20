@@ -5572,8 +5572,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         </div>
         <ul>
           <li>A2 在 A1 结束前还不存在，连对象都没创建</li>
-          <li>和 Java 里连续调用三个方法完全一样</li>
-          <li>async def 不加 create_task 就只是普通函数调用</li>
+          <li>下一次 coroutine 在当前 await 完成后才创建</li>
+          <li>await job() 在当前 Task 执行，内部仍可能挂起</li>
         </ul>
       </div>
 
@@ -5584,8 +5584,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         </div>
         <ul>
           <li>三个任务都有真正的挂起点（sleep / IO）</li>
-          <li>如果都是纯 CPU 计算，它们仍会串行跑完</li>
-          <li>并发是挂起点给的，不是 gather 给的</li>
+          <li>如果都是纯 CPU 计算，它们仍会依次执行</li>
+          <li>gather 安排并收集任务；挂起点提供重叠等待机会</li>
         </ul>
       </div>
 
@@ -5595,8 +5595,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <h3>总耗时怎么算</h3>
         </div>
         <ul>
-          <li>串行 = 所有 delay 之和</li>
-          <li>并发 = 最慢的那个 delay</li>
+          <li>该示例中串行耗时约等于 delay 之和</li>
+          <li>无争用时，并发耗时约等于最长 delay</li>
           <li>上限由 Semaphore 决定，不是由 gather 决定</li>
         </ul>
       </div>

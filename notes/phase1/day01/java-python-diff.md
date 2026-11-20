@@ -1,5 +1,5 @@
 ---
-title: Day 1 · Java→Python 定向迁跃
+title: Day 1 · Java 到 Python：先迁移模型，再记语法
 date: 2026-11-13
 day: 1
 phase: 1
@@ -10,307 +10,183 @@ tags:
 status: done
 ---
 
-# Day 1 · Java→Python 定向迁跃
+# Day 1 · Java 到 Python：先迁移模型，再记语法
 
-> [!abstract] 今日产出
-> - `phase1/day01/python/order.py`：批注版（❌ 原写法 + ✅ 改法）
-> - `phase1/day01/python/order_bean.py`：无批注的 Java bean 风格标准版
-> - `phase1/day01/java/Order.java`：对照用的 Java 原版
-> - 本篇笔记
+## 学完后应能
 
-> [!tip] 一句话总结
-> Python 和 Java 的差异不在语法，在**约束由谁来保证**：Java 靠编译器和访问修饰符，Python 靠约定、运行时机制和类型检查器。
+- 解释可变默认参数为何会跨调用共享，以及如何安全初始化。
+- 区分对象身份、值相等、真值判断和可空类型。
+- 写出保留订单状态不变量的 Python 类，并说明类型注解不会替代运行时校验。
 
----
+今天的可运行产出是 [批注版订单状态机](../../../phase1/day01/python/order.py)、[标准版](../../../phase1/day01/python/order_bean.py) 和 [Java 原版](../../../phase1/day01/java/Order.java)。先读 Java 行为，再比较 Python 实现，不要从语法逐行翻译。
 
-## 一、Java bean ↔ Python 映射表
+```mermaid
+flowchart LR
+    caller[调用 pay / ship / cancel] --> guard{当前状态允许转换?}
+    guard -- 是 --> update[更新 state]
+    update --> history[追加到 history]
+    guard -- 否 --> invalid[抛出 InvalidTransition]
+    event[apply event] --> registered{事件已登记?}
+    registered -- 是 --> caller
+    registered -- 否 --> unknown[抛出 ValueError]
+```
 
-| Java bean | Python | 说明 |
-|---|---|---|
-| `private String id;` | `self._id` | 下划线是**约定**，不是语法，外部仍可直接访问 |
-| `public String getId()` | `@property def id` | 属性访问语法，实际调用函数 |
-| `public void setState(...)` | `@state.setter` | 没有 setter 时赋值抛 `AttributeError` |
-| `public Order(String id)` | `def __init__(self, id)` | |
-| `public String toString()` | `__repr__` | |
-| `equals` / `hashCode` | `__eq__` / `__hash__` | 必须成对，否则对象不可哈希 |
-| `@Override` | `@decorator` | 机制完全不同，见 [[易错点 6：装饰器不是注解]] |
+图中的两类失败分别由事件分发表和状态转换校验产生，不能把“事件名有效”和“当前状态允许操作”合并成同一项检查。
 
----
+## 1. 默认参数在定义函数时求值
 
-## 二、十项容易误判的差异
-
-### 易错点 1：可变默认参数只求值一次
+Java 没有方法参数默认值。Python 有，但默认表达式在执行 `def` 时求值一次，并保存在函数对象上。
 
 ```python
-def add(item, bucket=[]):  # ❌ bucket 这个 list 在 def 执行时创建，被函数对象永久持有
+def add(item: str, bucket: list[str] = []) -> list[str]:
     bucket.append(item)
     return bucket
 
 
-add("a")  # ['a']
-add("b")  # ['a', 'b']  ← 不是 ['b']
+print(add("a"))  # ['a']
+print(add("b"))  # ['a', 'b']，仍是同一个默认列表
 ```
 
-`def` 语句执行时默认值就求值了，之后每次调用复用同一个对象。Java 没有这个问题，因为 Java 不给方法参数默认值（只能重载）。
-
-✅ 用 `None` 哨兵：
+当默认对象可变时，多次调用会共享修改。使用 `None` 表示“本次未传入”，在函数体内创建新对象：
 
 ```python
-def add(item, bucket: list[str] | None = None) -> list[str]:
+def add(item: str, bucket: list[str] | None = None) -> list[str]:
     if bucket is None:
         bucket = []
     bucket.append(item)
     return bucket
 ```
 
-dataclass 里对应的是 `field(default_factory=list)`。
+`None` 既是实际值，也是这里约定的哨兵。不能用 `if not bucket` 代替身份检查，因为调用者传入的空列表也是合法输入。dataclass 字段使用 `field(default_factory=list)` 达到相同目的。
 
-### 易错点 2：`is` vs `==`（和 Java 正好反过来）
+## 2. `==` 比值，`is` 比身份
 
-| Python | Java | 比较什么 |
+| Python | 常见 Java 对应 | 含义 |
 |---|---|---|
-| `==` | `equals()` | 值 / 内容 |
-| `is` | `==` | 对象身份（`id()`） |
+| `a == b` | `a.equals(b)` | 值是否相等，取决于类型实现的 `__eq__` |
+| `a is b` | `a == b` | 是否为同一个对象 |
 
 ```python
 a = [1, 2]
 b = [1, 2]
-a == b  # True  → 调用 list.__eq__，逐元素比
-a is b  # False → 两个不同的 list 对象
+assert a == b
+assert a is not b
 ```
 
-> [!warning] 唯一该用 `is` 的场景
-> 与 `None`、`True`、`False` 比较：`if x is None:`。不要写成 `if x == None`。
+对象缓存、字符串驻留等优化不属于值比较规则。不要用 `is` 比较数字或字符串内容。比较 `None` 时写 `value is None`，因为 `None` 是单例对象。
 
-> [!note] Python 没有常量池
-> 存在 **小整数缓存**（-5~256）与 **字符串驻留**，属于 CPython 实现细节，与 Java 的字符串常量池不是同一机制，不能类比。
+## 3. 真值判断检查对象的真值规则
 
-### 易错点 3：真值判断
-
-为 `False` 的：`None`、`False`、`0`、`0.0`、`""`、`[]`、`{}`、`()`、`set()`。
+内置的 `None`、`False`、数值零和空容器为假；非空容器为真，不检查其中元素是否为真。
 
 ```python
-bool("0")  # True  ← 非空字符串
-bool([0])  # True  ← 非空容器，不看里面装什么
-bool(" ")  # True  ← 空格也是非空
+bool([])       # False
+bool([0])      # True
+bool(" ")     # True
+bool("0")     # True
 ```
 
-**只看容器是否为空，不看内容真假。** Java 中 `if (list)` 无法通过编译，因此 Java 背景的开发者容易在此出错。
+Java 的 `if` 条件必须是 `boolean`，Python 则允许对象提供真值。用 `if items:` 表示“items 非空”很常见，但若业务需要区分 `None` 和空列表，应分别判断。
 
-### 易错点 4：类属性 vs 实例属性
+## 4. 实例字段、类字段与类型注解
+
+类字段在类上创建并由实例查找；在类体给可变对象赋值会让实例共享同一个对象。实例字段通常在 `__init__` 中通过 `self` 创建。
 
 ```python
-class Bad:
-    tags = []  # ❌ 类属性，所有实例共享
+class Shared:
+    tags = []
 
 
-class Good:
+class PerInstance:
     def __init__(self) -> None:
-        self.tags = []  # ✅ 实例属性
+        self.tags = []
 ```
 
-> [!danger] 关键判断标准
-> **看有没有 `self.xxx = ...`。** 有 `self.` 才是实例属性。
-> 只写类型注解 `tags: list[str]` **没用**——注解在运行时什么都不做，`tags` 还是类属性，还是共享。
+`tags: list[str]` 只会登记注解，不会创建值为列表的属性。它与 `tags = []` 不同。类注解可在 `__annotations__` 中查看，第三方库也可以读取它。
 
-### 易错点 5：GIL —— 它是障碍，不是优化
-
-同一时刻只允许一个线程执行 Python 字节码。**不是** "GIL 实现了 IO 并行"，恰恰相反，asyncio 能跑起来是因为它**根本不用多线程**。
-
-```text
-客户端进程 ──HTTP──> 远端 GPU 推理 ──返回──> 客户端进程
-     ↑                                          ↓
-     └──────── 全程只在等待 socket，CPU 空闲 ────┘
-```
-
-| 场景 | 特征 | Python 手段 | GIL 影响 |
-|---|---|---|---|
-| CPU 密集 | 算矩阵、压缩、图像 | 多进程 | **有影响**，必须绕 |
-| IO 密集 | 等网络 / DB / 磁盘 | asyncio / 线程 | **无影响**，等待时释放 |
-
-> [!important] Agent 服务是 IO 密集型的
-> 模型运行在远端机房，不在本地进程中。进程 99% 的时间在 `await` 等待响应。
-> `await` 时协程主动挂起、事件循环切换到其他协程——**在单线程内完成，从不需要同时执行字节码**，因此 GIL 不构成限制。
-
-### 易错点 6：装饰器不是注解
-
-Java 注解是给编译器 / 框架读的**元数据**，运行时靠反射，不改方法行为。Python 装饰器是**运行时的函数替换**：
+## 5. 类型注解不等于运行时校验
 
 ```python
-@deco
-def f(): ...
+def greet(name: str) -> str:
+    return "Hello " + name
 
 
-# 完全等价于
-def f(): ...
-
-
-f = deco(f)
+greet(123)  # Python 运行时不会因为注解自动拒绝这个参数
 ```
 
-`deco(f)` 返回什么，`f` 就变成什么。能包装、能改签名、能整个替换。
-
-> [!tip] 应用
-> `@app.get("/")`、`@retry`、`@tool`、`@pytest.fixture` 全建立在这个机制上。阶段 2 的 function calling 工具注册会用大量装饰器。
-
-### 易错点 7：模块导入基于 `sys.path`
-
-Python 没有 classpath。`import x` 按 `sys.path` 列表顺序查找。项目里靠 **venv + `uv run`** 保证 `sys.path` 正确，不需要 `-cp` 参数。
-
-### 易错点 8：依赖管理
-
-`pyproject.toml` 一个文件声明依赖 + 工具配置（对应 `pom.xml` / `build.gradle`），`uv.lock` 锁版本（对应 `pom.xml` 的 resolved 依赖）。`uv add` / `uv sync` / `uv run` 三件套。
-
-### 易错点 9：除法
+类型注解主要供 IDE、mypy 等静态分析工具使用，也可能被运行时库读取。mypy 检查与 Pydantic 校验是不同机制。函数注解 `state: OrderState | None` 表示静态类型允许 `None`，不表示参数可以省略；参数是否可省略由默认值决定。
 
 ```python
-7 / 2  # 3.5   永远浮点
-7 // 2  # 3     整除，向下取整
--7 // 2  # -4    ← Java 是 -3（截断）
--7 % 3  # 2     ← Java 是 -1（截断余数）
+def find_order(order_id: str | None) -> None:
+    ...
+
+
+find_order(None)  # 可以显式传 None
+# find_order()   # 缺少必需参数，仍然是 TypeError
 ```
 
-> [!note] 恒等式
-> `a == (a // b) * b + (a % b)` 在 Python 里永远成立。
-> Python 的 `%` 结果**与除数同号**，Java 的与**被除数**同号。
+`@property` 是把受控读写行为暴露成属性语法。Day 1 的订单状态不提供 setter，外部只能调用 `pay`、`ship`、`cancel`，因此不能绕过状态转换检查。属性约定与可见性保护不同，Python 的 `_state` 仍能被外部访问，只是以下划线表示内部使用。
 
-### 易错点 10：缩进即语法
+## 6. GIL、线程与 asyncio 是不同层的问题
 
-缩进是语法结构的一部分，不只是排版。同一文件里 tab / 空格混用会直接 `TabError`。
+本仓库使用带 GIL 的 CPython 3.11。GIL 约束同一解释器中线程执行 Python 字节码的并行性，不限制创建线程，也不阻止线程等待 I/O。某些阻塞 I/O 和原生扩展会在等待或计算时释放 GIL。
 
-本仓库统一 **4 空格**，由 `pyproject.toml` 的 `[tool.ruff.format] indent-style = "space"` 锁定，`ruff format` 负责执行。
+asyncio 通常由一个线程中的事件循环驱动多个 Task。Task 在等待网络、定时器等异步操作时让出控制权，循环转去运行其他 Task。这是并发等待，不是多个 Python Task 同时执行字节码。`await` 本身也不保证挂起，只有被等待的操作尚未就绪时才会让出。
 
----
+Agent 服务常包含大量远端模型和数据库调用，所以异步 I/O 通常有帮助；本地 CPU 密集工作不会因为改写成 `async def` 自动加速。按任务性质选择线程、进程或原生并行实现。
 
-## 三、类型注解
+## 7. 装饰器不是 Java 注解
 
-> [!warning] 注解默认不可空
-> `state: OrderState = None` 是错的——Python 注解默认"永远不是 None"（PEP 484 `no_implicit_optional`）。
-> 相当于 Java 里标了 `@NonNull` 却赋 `null`。
+装饰器表达式在执行 `def` 语句时运行。常见模块顶层函数是在模块导入时完成装饰，但这不是装饰器只能在导入时使用。
 
 ```python
-state: OrderState | None = None  # Python 3.10+
-history: list[OrderState] | None = None
-# 等价于 typing.Optional[OrderState]，对应 Java 的 @Nullable
+@decorate
+def work() -> None:
+    ...
+
+# 等价于
+def work() -> None:
+    ...
+
+
+work = decorate(work)
 ```
 
-`None` 不是"假值"，是 Python 唯一的空值，对应 Java 的 `null`。别因为"枚举不是布尔类型"就觉得不能给 None——**可空性和类型无关**。
+装饰器可以返回原函数、包装后的函数或其他对象，因此会影响名称绑定和调用行为。Java 注解通常提供元数据，框架或编译器再读取这些元数据；Spring AOP 等框架可能通过代理改变调用路径，不能概括成“注解绝不改变行为”。装饰器的完整用法见 [[Day 2 · 函数是一等公民]]。
 
----
+## 8. 导入、依赖与算术差异
 
-## 四、`@property` 与状态机
+- `import` 由 `sys.path` 中的搜索位置解析。虚拟环境隔离第三方包，`uv run` 选择项目环境；它们不是 Java classpath 的逐项对应物。
+- `pyproject.toml` 声明项目与依赖，`uv.lock` 锁定解析结果。`uv sync` 同步环境，`uv run` 在项目环境中执行命令。
+- 对整数操作数，Python 的 `/` 返回浮点商。`//` 向负无穷取整，余数与除数同号；Java 整数除法向零截断，余数与被除数同号。
 
 ```python
-class Order:
-    @property
-    def state(self) -> OrderState:
-        return self._state
+7 / 2    # 3.5
+-7 // 2  # -4
+-7 % 3   # 2
 ```
 
-- `@property` 让 `state` 变成**数据描述符**，`order.state` 是读，走 `__get__`。
-- `order.state = x` 是写，走 `__set__`——没定义 setter 就抛 `AttributeError: property 'state' has no setter`。
-- **类内部也要写 `self._state = x`**，不能写 `self.state = x`。
+Python 用缩进表示代码块，混用 tab 和空格可能产生 `TabError`。本仓库使用四个空格，由 Ruff 格式检查验证。
 
-> [!important] 这是设计决策，不是风格问题
-> 标准 Java bean（DTO）通常全套 getter/setter。但 `Order` 是**状态机**，给它开 setter 会让外部绕过校验：
-> - 枚举能挡住非法值（`DISCARD`），**挡不住非法转换**
-> - `order.set_state(SHIPPED)` → 合法值 + 非法转换 → "没付款就发货"
->
-> 判断标准：**这个对象有没有不变量要守**。有 → 只读属性 + 业务方法写入口。
+## 9. 相等、哈希与 dataclass
 
----
+普通 Python 类没有自定义 `__eq__` 时，`==` 默认按对象身份比较，和 Java 未重写 `equals` 时相似。`order_bean.py` 选择让同 ID 订单相等，这是额外的领域建模决定，Java 原版没有这项行为。
 
-## 五、`__eq__` / `__hash__`
+若自定义 `__eq__`，Python 默认会将 `__hash__` 设为 `None`，使对象不可作为 `set` 元素或 `dict` 键。若对象可哈希，必须满足 `a == b` 蕴含 `hash(a) == hash(b)`；哈希相同不保证对象相等。实体是否按 ID 相等，应由领域语义决定。
 
-```python
-def __eq__(self, other: object) -> bool:
-    if not isinstance(other, Order):
-        return NotImplemented  # 注意是 NotImplemented，不是 False
-    return self._id == other._id  # 实体语义：同 id 即同一实体
+`@dataclass` 默认生成 `__repr__` 和 `__eq__`，通常生成 `__init__`。手写 `__init__` 时它不会再生成初始化方法，但仍可能生成其他方法。默认 `eq=True, frozen=False` 时对象不可哈希。是否使用 dataclass 取决于对象的语义与约束，不必为了使用它而把所有初始化逻辑搬进 `__post_init__`。
 
+订单状态机需要保护转换规则，保留显式业务方法更容易看出允许的状态变化。对照 Java 原版检查：`PAID` 可以取消，`SHIPPED` 与 `CANCELLED` 不可以取消。
 
-def __hash__(self) -> int:
-    return hash(self._id)
-```
+## 自测
 
-> [!danger] 定义了 `__eq__` 不定义 `__hash__` 的后果
-> Python **自动把 `__hash__` 置为 `None`**，对象变得不可哈希，放进 `set` / 当 `dict` 的 key 直接报
-> `TypeError: unhashable type`。这一点比 Java 更严格：Java 会提供一个不匹配的默认 `hashCode`，问题要到运行时才暴露。
+- 默认列表何时创建？调用者传入空列表时，为什么不能用 `if not bucket` 判断是否使用默认值？
+- 两个内容相同的列表满足 `==` 吗？满足 `is` 吗？
+- `tags: list[str]` 和 `tags = []` 在类体中分别创建什么？
+- 注解能否阻止错误类型的调用？`x: T | None` 是否意味着参数可省略？
+- asyncio 的并发来自哪里？它是否让多个 Task 同时执行 Python 字节码？
+- 为什么订单状态不暴露 setter？如果外部直接写 `_state`，Python 会阻止吗？
 
-**hash 契约**：`a == b` 为 True ⇒ `hash(a) == hash(b)`。反过来不成立（哈希碰撞）。
-`dict` / `set` 先用 hash 定位桶、再用 `__eq__` 确认。哈希不匹配 → 相等对象落到不同桶 → 去重失效。
+## 下一步
 
-判断用实体语义还是全字段语义：实体（有 id 的）按 id；值对象（金额、坐标）按全字段。
-
----
-
-## 六、`@dataclass` 只用了一半的后果
-
-```python
-@dataclass
-class A:
-    x: int
-
-    def __init__(self, x: int) -> None:  # 手写了 init
-        self.x = x
-```
-
-实测结果（本机验证）：
-
-```text
-hash: None          ← __hash__ 被禁用
-eq:   True          ← __eq__ 照样生成
-repr: A(x=1)        ← __repr__ 照样生成
-set error: unhashable type: 'A'
-```
-
-| 成员 | 是否生成 |
-|---|---|
-| `__init__` | ❌ 已手写则不生成 |
-| `__repr__` | ✅ 照常生成 |
-| `__eq__` | ✅ 照常生成 |
-| `__hash__` | ❌ 被置为 `None` |
-
-**要么全用 dataclass（初始化逻辑放 `__post_init__`），要么不用。** 混用会产生意想不到的 `__eq__` 和不可哈希。
-
-dataclass 正确姿势：
-
-```python
-@dataclass
-class Order:
-    id: str
-    _state: OrderState = field(init=False, default=OrderState.CREATED)
-    _history: list[OrderState] = field(init=False, default_factory=list)
-
-    def __post_init__(self) -> None:
-        self._history.append(self._state)
-```
-
----
-
-## 七、自测清单（Day 1 验收）
-
-- [x] 能说出可变默认参数的机制和修法
-- [x] 能说清 `is` / `==` 和 Java 的反向映射
-- [x] 知道非空容器即为 True，不看内容
-- [x] 知道 `self.tags = []` 才是实例属性，注解不算
-- [x] 能用自己的话讲清 Agent 服务为什么 IO 密集、GIL 为什么不挡 asyncio
-- [x] 能说清装饰器是函数替换、不是注解
-- [x] 知道 `_` 前缀不拦截，`private` 拦截
-- [x] 知道 `@property` 无 setter 时赋值报 `AttributeError`
-- [x] 知道注解默认不可空、要写 `| None`
-- [x] 能举出"合法值 + 非法转换"绕过状态机的例子
-- [x] 知道 `__eq__` / `__hash__` 必须成对
-- [x] 知道 dataclass 混用手写 `__init__` 的后果
-
----
-
-## 八、明天要看
-
-- [[Day 2 · 函数是一等公民]]：装饰器手写 `@retry` / `@timer`、生成器 `yield`、`with` 上下文管理器、typing（Protocol / Generic / dataclass / Pydantic v2）
-- 产出：用 Pydantic 定义一套 Tool schema —— 这是阶段 2 function calling 的直接前置
-
-> [!note] 关联
-> - [[易错点 6：装饰器不是注解]] 是 Day 2 的主线
-> - [[易错点 1：可变默认参数只求值一次]] 在 Pydantic 和 dataclass 里会以 `default_factory` 的形式再出现
-> - [[易错点 5：GIL —— 它是障碍，不是优化]] 在 Day 3 会变成一整天的动手内容
+Day 2 会把函数当作值传递和替换，并用 Pydantic 生成工具参数 schema。可变默认参数与注解边界会再次出现。

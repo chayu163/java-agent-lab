@@ -1,5 +1,5 @@
 ---
-title: Day 5 · mini agent loop
+title: Day 5 · 工具调用循环：模型提议，程序执行
 date: 2026-11-19
 day: 5
 phase: 1
@@ -10,235 +10,127 @@ tags:
 status: done
 ---
 
-# Day 5 · mini agent loop
+# Day 5 · 工具调用循环：模型提议，程序执行
 
-> [!abstract] 今日产出
-> - `phase1/day05/python/01_messages.py`：消息协议的构造与配对
-> - `phase1/day05/python/02_registry.py`：工具注册表与 `@tool` 装饰器
-> - `phase1/day05/python/mini_loop.py`：完整循环（主产出）
-> - 本篇笔记
+## 学完后应能
 
-> [!tip] 一句话总结
-> 模型只输出「下一步做什么」；执行动作、回填结果、判断终止，全部在你的程序里。这二十行循环就是 Agent 与普通 LLM 应用的全部差别。
+- 画出 assistant 工具请求、工具执行结果和下一轮模型输入的消息顺序。
+- 解释工具注册表、参数解析、错误回填和步数上限各自负责什么。
+- 说明并发执行策略的前提，以及当前实现的执行顺序边界。
 
----
+主产出是 [mini_loop.py](../../../phase1/day05/python/mini_loop.py)。消息协议与装饰器注册分别由 [01_messages.py](../../../phase1/day05/python/01_messages.py) 和 [02_registry.py](../../../phase1/day05/python/02_registry.py) 独立演示。
 
-## 一、循环图解
+## 1. 这个练习里的 Agent loop
 
-一次完整的对话经历「请求 → 判断 → 执行 → 回填」，直到模型不再要求调用工具。以「A1001 到哪了」为例，共两轮：
+“Agent”没有唯一的行业定义。本练习把它限定为一个工具调用循环：模型读取当前消息，提出工具调用或给出答案；程序负责执行工具、回填结果并判断是否继续。
 
-```text
- ┌─────────────────────────────────────────────────────┐
- │ messages 列表（模型的全部记忆）                       │
- │                                                     │
- │  [system]  你是电商售后助手…                         │
- │  [user]    A1001 到哪了？                            │
- └──────────────────────┬──────────────────────────────┘
-                        │
-             ① 请求 model(messages)
-                        ▼
- ┌─────────────────────────────────────────────────────┐
- │ ② assistant 响应                                     │
- │    content: null                                    │
- │    tool_calls:                                      │
- │      call_1 → query_order(A1001)      ┐             │
- │      call_2 → get_logistics(A1001)    │ 有 tool_calls│
- └───────────────────────────────────────┼─────────────┘
-                                         │
-                        ③ 路由：名字 → 注册表里的函数
-                                         │
-                    ┌────────────────────┴──────────────────┐
-                    │  ④ 执行（按副作用分组）                 │
-                    │                                       │
-                    │   只读 query_order ──┐                 │
-                    │                     ├─ gather 并发     │
-                    │   只读 get_logistics┘   （同时等待）     │
-                    │                                       │
-                    │   写操作 create_ticket → 依次执行       │
-                    └────────────────────┬──────────────────┘
-                                         │
-                        ⑤ 回填 tool 消息（tool_call_id 配对）
-                                         ▼
- ┌─────────────────────────────────────────────────────┐
- │ messages 变长了：                                    │
- │  [system] [user]                                    │
- │  [assistant + tool_calls]      ← 第一轮的响应         │
- │  [tool call_1] {"ok":true, data:…}  ← 执行结果       │
- │  [tool call_2] {"ok":true, data:…}                  │
- └──────────────────────┬──────────────────────────────┘
-                        │
-             再次请求 model(messages)
-                        ▼
- ┌─────────────────────────────────────────────────────┐
- │ assistant 响应：                                     │
- │    content: "已发货，顺丰 SF1234567890"               │
- │    tool_calls: 无        → ⑥ 循环结束，返回答案       │
- └─────────────────────────────────────────────────────┘
+```mermaid
+sequenceDiagram
+    actor User as 用户
+    participant Loop as run_agent
+    participant Model as 假模型
+    participant Tool as 工具
+    User->>Loop: 问题
+    loop 最多 max_steps 轮
+        Loop->>Model: 当前完整 history
+        alt 响应包含 tool_calls
+            Model-->>Loop: assistant 请求(call_1, call_2)
+            Loop->>Tool: 按注册表执行每个调用
+            Tool-->>Loop: role=tool，分别携带 call_id
+            Loop->>Loop: 追加 assistant 响应与工具结果
+        else 没有 tool_calls
+            Model-->>Loop: assistant 最终回答
+            Loop-->>User: 返回回答
+        end
+    end
+    Note over Loop: 无 tool_calls 时立即返回；最后一轮仍要求工具时会在执行后抛 MaxStepsExceeded
 ```
 
-三个要点：
+本练习每次调用假模型时都传入完整历史。模型调用函数本身不保存跨请求记忆；调用方通过提交消息列表提供对话上下文。代码复制 `messages` 的外层列表到 `history`，循环只向 `history` 追加响应和工具结果。
 
-1. **模型的记忆 = messages 列表。** 每一轮都把完整列表重新提交，模型本身无状态。
-2. **判断终止的依据只有一条：响应里有没有 `tool_calls`。** 有就执行，没有就结束。
-3. **回填靠 `tool_call_id` 配对。** 多个工具并发执行、完成顺序不定，`gather` 保序交付让回填顺序与请求顺序一致。
+## 2. 工具请求与结果如何配对
 
----
+一个兼容 OpenAI 工具调用形状的项目示例：
 
-## 二、协议：四种角色与一次配对
-
-| role | 谁写的 | 关键字段 |
-|---|---|---|
-| `system` | 你的程序 | 定角色与约束 |
-| `user` | 用户 | 本次请求 |
-| `assistant` | 模型 | `content` 或 `tool_calls`，互斥 |
-| `tool` | 你的程序 | `tool_call_id`、`content` |
-
-两个练习里验证过的细节：
-
-- **`arguments` 是字符串。** 模型生成的是文本，必须 `json.loads` 之后才能展开成关键字参数。解析失败要回填而不是抛异常。
-- **`tool_call_id` 是唯一线索。** 一次请求多个 `tool_calls` 时，模型靠这个字段把每条结果归位。写错或漏写，下一轮模型看到的就是一段没有归属的输出。
-
----
-
-## 三、注册表：一张表决定两件事
-
-```python
-TOOLS = {"query_order": query_order, "get_logistics": get_logistics, …}
-SCHEMAS = {"query_order": {"description": …, "parameters": …}, …}
+```json
+{
+  "id": "call_1",
+  "type": "function",
+  "function": {
+    "name": "query_order",
+    "arguments": "{\"order_id\": \"A1001\"}"
+  }
+}
 ```
 
-- 模型**能看到**哪些工具：发给模型的 `tools` 数组由 `SCHEMAS` 生成
-- 名字**解析到**哪个函数：循环里的路由查 `TOOLS`
+`arguments` 是 JSON 字符串。程序先解析，再用工具名查允许调用的注册表。JSON 能成功解析只说明语法正确，不代表字段、类型或业务规则已经验证。
 
-一处维护，两处生效。工具增删时只改一个装饰器调用。
+每次工具响应使用 `role: "tool"`，并携带对应的 `tool_call_id`。一次 assistant 响应可以包含多个工具调用，每个调用都需要有自己的回填消息。响应的 `content` 与 `tool_calls` 在不同协议中可能同时存在或采用不同约束；本练习的 helper 为简化只构造其中一种形态。
 
-`@tool` 装饰器是 Day 2 带参数装饰器的直接应用：三层结构，`tool(...)` 返回 `decorator`，`decorator` 把函数登记进两张表后原样返回。
+## 3. 注册表是允许调用范围
 
-> [!danger] 路由必须是白名单
-> `TOOLS.get(name)`，表里没有就报 `UnknownTool`。
-> 不写 `getattr(module, name)`——那等于让模型可以调用模块里的任意函数。
+工具表把模型可请求的名称映射到本地函数。分发表的白名单限制了可执行范围：模型返回的任意名称都不能直接当作模块属性访问。
 
----
+`02_registry.py` 使用带参数的 `@tool` 装饰器登记函数与 schema。主产出 `mini_loop.py` 则直接维护 `TOOLS` 字典，用于聚焦循环本身；它不调用 `@tool`，也没有从注册表练习导入实现。
 
-## 四、执行策略：按副作用分组
+工具边界仍需要输入校验。当前循环把解析后的字典用 `fn(**arguments)` 展开，缺少参数、参数名错误或类型不匹配会触发异常。生产实现应使用 schema 校验或明确的参数模型，不能把模型生成的 JSON 直接视为可信输入。
 
-模型一次可能返回多个 `tool_calls`。全部串行浪费等待时间，全部并发可能撞车。分组依据只有一个问题：**这个工具改变状态吗？**
+## 4. 执行、错误与顺序
 
-| 类别 | 本例 | 执行方式 | 理由 |
-|---|---|---|---|
-| 只读 | `query_order`、`get_logistics` | `asyncio.gather` 并发 | 相互独立，重叠等待不改变结果 |
-| 写 | `create_ticket` | 依次执行 | 顺序影响状态；阶段 5 还要加人工确认 |
-| 未知 | 不在表内的名字 | 走串行路径，`invoke` 回填错误 | 必须回填，否则模型下一轮重复同一个请求 |
+当前 `execute_calls` 将已登记的只读工具交给 `asyncio.gather` 并发执行，再按模型原始调用位置放回结果列表；写工具和未知工具在后续串行处理。未知工具由 `invoke` 转成带错误内容的 `tool` 消息，因此仍满足每个请求都有回填。
 
-`execute_calls` 的实现模式：先按原顺序给每个 call 编号，只读的并发跑完按编号放回，写操作按编号依次执行放回。`gather` 保序 + 按索引回填 = 模型看到的顺序与请求一致。
+`gather` 的结果顺序与输入顺序相同，但这只是结果顺序，不是执行顺序。实现先执行只读组、再执行写入组；若同一响应里既有读又有写，代码不会保留两类调用之间的原始执行顺序。因此当前策略只适合彼此独立的只读操作和不会依赖其相对顺序的写操作。
 
-实测数据：两个各睡 50ms 的只读工具，并发执行总耗时约 60ms，串行需要 100ms 以上。
+“只读并发、写操作串行”是此练习选择的简化策略，不是所有工具系统都适用的规则。实际分类需要考虑副作用、幂等性、数据依赖、事务和人工审批。
 
----
+工具执行异常会被转换成 `{"ok": false, ...}` 并作为工具结果回填，让循环可以继续。`except Exception` 不会捕获 Python 3.11 的 `asyncio.CancelledError`，因为取消信号继承自 `BaseException`。取消应继续传播，必要清理放在 `finally`。
 
-## 五、错误处理：工具报错是信息，不是异常
+## 5. 历史与终止条件
 
-`invoke` 把所有失败转成正常消息：
+`run_agent` 每轮先把模型响应加入 `history`，再执行和回填工具，下一轮调用模型时传入更新后的 `history`。测试会确认第二轮看到 `role: "tool"` 和正确的 `tool_call_id`，并确认输入列表没有被循环追加。
 
-```python
-try:
-    fn = TOOLS.get(name)
-    if fn is None:
-        raise UnknownTool(f"未知工具: {name}")
-    arguments = json.loads(call["function"]["arguments"])
-    payload = await fn(**arguments)
-    content = json.dumps({"ok": True, "data": payload}, ensure_ascii=False)
-except Exception as exc:
-    content = json.dumps({"ok": False, "error": f"{type(exc).__name__}: {exc}"}, …)
+无 `tool_calls` 时，本练习把响应视为最终答案。真实 API 还会提供 finish reason 等状态；达到 token 上限、内容过滤等情况不能当成正常答案处理，Day 6 会接入协议级判断。
+
+`max_steps` 限制模型响应轮数。若最后允许的一轮仍返回工具调用，程序执行并回填工具后已经耗尽轮数，无法再请求模型生成最终答案，于是抛出 `MaxStepsExceeded`。因此配置上限时，要为“工具请求之后的总结响应”预留一轮。
+
+## 6. 假模型与真实 API 的接口边界
+
+本练习的 `Model` 是同步函数，立即从脚本中取出预设响应。它让循环能离线、无费用地测试。真实模型 API 通常通过异步 HTTP 请求调用，不能只把 `scripted_model` 替换成 `async def` 而保持循环不变；接口需要改为 await 模型请求，错误处理也要覆盖传输和协议层。
+
+循环数据流和消息配对规则可以复用，模型适配器与结束条件需要按 API 协议实现。这正是 Day 6 从假模型走向真实兼容 API 时要验证的部分。
+
+## 7. 验收测试验证什么
+
+运行：
+
+```bash
+uv run phase1/day05/python/mini_loop.py
 ```
 
-理由：模型看到「订单不存在」后会调整下一步，这是循环能处理的信息；抛异常则整轮对话终止。验收里的未知工具场景证明了这一点——`refund` 报错回填后，模型给出「已转人工处理」的答案，而不是崩溃。
+主脚本验证五条路径：
 
-唯一的例外是 `CancelledError`：它继承自 `BaseException`，`except Exception` 抓不到它，取消必须向上传播。这是 3.8+ 有意的设计，防止普通异常处理吞掉取消信号。
+1. 单工具调用后返回答案。
+2. 第二轮模型请求包含第一轮工具回填。
+3. 独立只读工具并发执行，结果仍按调用 id 排列。
+4. 未知工具得到错误回填，循环继续。
+5. 模型持续请求工具时达到 `max_steps` 并停止。
 
----
+并发测试使用任务耗时作为粗略验证。它适合确认示例实现是否真的重叠等待，不是稳定的性能基准；机器负载会影响具体毫秒数。
 
-## 六、终止：一条正常路径，一条保底
+## Java 对照
 
-**正常结束**：响应没有 `tool_calls`，`content` 就是答案。
+可以把消息列表看成一次请求携带的上下文，把工具注册表看成白名单分发表，把 `max_steps` 看成循环的资源上限。但这不是传统业务状态机的同构模型：下一步由模型输出提出，程序仍需验证该提议并决定是否执行。
 
-**保底**：`max_steps`。模型完全可能反复请求同一个工具；没有上限时循环持续消耗 token 与工具配额，而调用方看不到任何进展。验收用脚本模拟了连续 10 次请求同一工具的场景，`max_steps=3` 时正确抛出 `MaxStepsExceeded`。
+## 自测
 
-> [!danger] 没有步数上限的循环不是 Agent，是事故
+- 为什么第二轮模型请求必须包括 assistant 工具请求和工具结果？
+- `tool_call_id` 解决什么问题？一个响应有多个调用时要回填几条消息？
+- JSON 解析成功能否证明参数合法？还需要哪些校验？
+- `gather` 保证结果顺序，是否意味着工具按同一顺序执行？
+- 当前实现混合读写调用时采用什么执行顺序？适用前提是什么？
+- `max_steps=1` 时，若第一轮请求工具，程序能否再请求模型总结？
+- 为什么真实异步模型 API 不能直接替换同步的 `scripted_model`？
 
----
+## 阶段 1 回顾
 
-## 七、批改实录
-
-三个文件中暴露的问题，按严重程度排列：
-
-### 1. 对字典做多项解包，取到的是键（练习 2）
-
-```python
-description, parameters = schema    # schema 是 dict
-# 实际得到 description == "description"、parameters == "parameters"
-```
-
-对字典解包迭代的是**键**。工具的说明与参数约束全部丢失，模型收到一份无意义的 schema。改成 `{"name": name, **schema}` 按键展开。
-
-### 2. 断言只查键存在，没查值（练习 2）
-
-```python
-assert "parameters" in schemas[0]["function"]   # 值变成字符串也能通过
-```
-
-上面那个错误因此完整通过了验收。修正后的断言落到具体值：`description` 是那句话、`required` 是那个列表。**断言要落到值上，不能停在结构上。**
-
-### 3. 误导入第三方内部模块（练习 2 与主产出，共四处）
-
-```python
-from mypy.checkexpr import TooManyUnions
-from ast import mod
-from unittest import async_case
-from urllib import response
-```
-
-IDE 自动补全带入。危害不只是多一行：mypy 是 dev 依赖，生产环境会直接 `ImportError`。`ruff` 的 `F401`（未使用导入）就是拦这类问题的。
-
-### 4. 复制了 `messages` 却仍然追加原列表（主产出）
-
-```python
-history = list(messages)      # 复制了一份
-history.append(response)      # ✅
-messages.extend(calls_results) # ❌ 追加到了调用方的列表上
-```
-
-复制了 `history` 却把工具结果追加到原 `messages` 上，调用方持有的列表被污染，`RunResult.messages` 与 `history` 也不一致。docstring 里写了「传入的 messages 不被修改」，实现与注释矛盾。改为统一操作 `history`。
-
-### 5. `zip` 缺 `strict` 参数（主产出）
-
-`zip(read_items, read_results)` 在两个序列长度不一致时静默截断。加 `strict=True` 让长度不匹配直接抛 `ValueError`——这里两边的长度必须相等，不等就是 bug，宁可报错也不静默。
-
-### 6. 缩进混用（主产出）
-
-`run_agent` 循环体用了 3 空格缩进，其余部分是 4 空格。Python 允许同一个块内统一即可，但两个块缩进不同风格时 `ruff format` 会重排。已统一为 4 空格。
-
----
-
-## 八、阶段 1 收尾
-
-计划给阶段 1 的两条总验收：
-
-- **不看教程手写 `asyncio.gather` 并发调用**：Day 3 达成，Day 5 在 `execute_calls` 里再应用了一次（只读并发 + 保序回填）。
-- **Python 默认参数与 Java 默认参数的区别**：Python 的默认值在 `def` 执行时求值一次，可变对象被函数对象长期持有（Day 1 坑 1）；Java 不给参数默认值，只能重载。
-
-阶段 1 的产出清单：
-
-| 天 | 主题 | 主产出 |
-|---|---|---|
-| 1 | Java→Python 迁跃 | 订单状态机（批注版 + bean 版） |
-| 2 | 函数是一等公民 | Pydantic Tool schema |
-| 3 | asyncio | httpx 并发调 5 个 API |
-| 4 | pytest | 给 Day 3 代码写的 5 个测试 |
-| 5 | mini agent loop | 完整循环（不接真实模型） |
-
-> [!note] 与阶段 2 的衔接
-> 今天的循环是 Day 6 的骨架。差别只有一处：`scripted_model` 换成真实 API 调用，`tools` 数组里填上 Day 2 用 Pydantic 生成的 schema。协议、注册表、执行策略、终止条件全部复用。
-
-> [!tip] 面试可用的一句话
-> 「Agent 循环本身只有二十行；复杂度在上下文构造、工具注册表和终止条件三处。我实现过完整的循环，包括只读工具并发、错误回填让模型自行修正、以及步数上限防止死循环。」
+Day 1 的对象与类型、Day 2 的函数和值、Day 3 的异步等待、Day 4 的替身测试，在今天组成了一个可离线验证的循环。进入 Day 6 后，需将同步假模型改为真实异步请求，并按实际协议处理响应状态。

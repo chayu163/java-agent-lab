@@ -67,7 +67,7 @@ TOOLS: dict[str, ToolFn] = {
     "create_ticket": create_ticket,
 }
 
-# 只读工具之间没有依赖，可以并发；写工具改变状态，必须依次执行
+# 本练习并发执行只读工具，并按调用顺序串行执行写工具。
 READ_ONLY = {"query_order", "get_logistics"}
 WRITE = {"create_ticket"}
 
@@ -255,16 +255,15 @@ async def run_agent(
     每一轮做四件事：请求模型、把响应加入 messages、执行 tool_calls 并回填、
     判断是否结束。没有 tool_calls 即为正常结束。
 
-    传入的 messages 不被修改：循环内部复制一份再追加，调用方持有的列表保持原样。
+    循环只向复制出的列表追加消息，不会向调用方的列表追加；该复制是浅拷贝。
 
     步数上限不是可选参数：模型可能反复请求同一个工具，缺少上限时循环
     会持续消耗 token 与工具配额，而调用方看不到任何进展。
     """
-    # raise NotImplementedError("TODO: for step in range(max_steps): 请求 -> 回填 -> 判断终止")
     steps: list[Step] = []
     history = list(messages)
     for step in range(max_steps):
-        response = model(messages)
+        response = model(history)
         history.append(response)
         calls = response.get("tool_calls", [])
         if not calls:
@@ -292,6 +291,25 @@ async def check_single_tool() -> None:
     assert len(result.steps) == 1
     assert result.steps[0].results[0]["role"] == "tool"
     assert '"已发货"' in result.steps[0].results[0]["content"]
+
+
+async def check_history_replayed() -> None:
+    original_messages = start_messages("A1001 发货了吗")
+    observed_histories: list[list[Message]] = []
+    responses = [
+        assistant_call("call_1", "query_order", order_id="A1001"),
+        assistant_answer("订单 A1001 已发货。"),
+    ]
+
+    def model(messages: list[Message]) -> Response:
+        observed_histories.append(list(messages))
+        return responses.pop(0)
+
+    await run_agent(model, original_messages)
+
+    assert len(original_messages) == 2, "run_agent 不应修改调用方的列表"
+    assert observed_histories[1][-1]["role"] == "tool", "后续请求必须包含工具结果"
+    assert observed_histories[1][-1]["tool_call_id"] == "call_1"
 
 
 async def check_parallel_reads() -> None:
@@ -342,6 +360,7 @@ async def check_max_steps() -> None:
 
 async def main() -> None:
     await check_single_tool()
+    await check_history_replayed()
     await check_parallel_reads()
     await check_unknown_tool()
     await check_max_steps()

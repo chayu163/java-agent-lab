@@ -30,9 +30,11 @@ def iter_chunks(text: str, size: int, overlap: int = 0) -> Iterator[str]:
 
     i = 0
     while i < len(text):
-        chunk = text[i : i + size]
-        yield chunk
-        i += size - overlap
+        end = i + size
+        yield text[i:end]
+        if end >= len(text):
+            break
+        i = end - overlap
 
 
 def take(n: int, it: Iterator[T]) -> list[T]:
@@ -46,7 +48,7 @@ def take(n: int, it: Iterator[T]) -> list[T]:
 if __name__ == "__main__":
     print(iter_chunks("abcdefg", 3))
     assert list(iter_chunks("abcdefg", 3)) == ["abc", "def", "g"]
-    assert list(iter_chunks("abcdefg", 3, overlap=1)) == ["abc", "cde", "efg", "g"]
+    assert list(iter_chunks("abcdefg", 3, overlap=1)) == ["abc", "cde", "efg"]
 
     g = iter_chunks("abcdefg", 3)
     assert next(g) == "abc", "第一次 next 才开始执行"
