@@ -25,7 +25,7 @@ curriculum.json   # 站点每日任务、产出与节点关联的唯一数据源
 
 phaseN/
 └── dayNN/
-    ├── README.md   # 当天知识树（从 day03 起）
+    ├── README.md   # 当天知识导读：先读概念，再做练习
     ├── java/       # 对照阅读用的 Java 原版
     └── python/     # Python 练习与当天产出
 
@@ -49,6 +49,8 @@ docs/             # GitHub Pages 站点源码；content/ 是生成物，不入�
 根目录是唯一的 uv 项目，30 天共享一个 `.venv`；依赖统一在 `pyproject.toml` 声明。
 
 站点路线图的每日任务、产出和节点关联维护在 `curriculum.json`；完成状态由当天笔记 frontmatter 的 `status: done` 生成。
+学习笔记和日 README 的写作质量标准见 [LEARNING_DOCS.md](LEARNING_DOCS.md)。
+每日练习的设计与验收规则见 [CODE_PRACTICE.md](CODE_PRACTICE.md)。
 
 ## 常用命令
 
