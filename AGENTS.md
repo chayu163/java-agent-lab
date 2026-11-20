@@ -9,7 +9,8 @@
 ## 目录约定
 
 - `phaseN/dayNN/README.md`：当天的学习地图、概念关系、代码入口与验收路径。
-- `phaseN/dayNN/python/`、`java/`：当天可运行练习与必要的 Java 对照。
+- 当天 Python 练习直接放在 `phaseN/dayNN/`，不另建 `python/` 子目录。
+- `phaseN/dayNN/java/`：必要的 Java 对照。已有日期目录保持原状。
 - `notes/phaseN/dayNN/*.md`：当天的详细知识笔记，Obsidian 可直接打开。
 - `notes/phaseN/dayNN/assets/`：笔记引用的图表，构建时复制到站点。
 - `curriculum.json`：站点每日任务、产出与路线图节点关联的唯一数据源。
@@ -46,13 +47,14 @@
 
 - Python 3.11.9、uv 0.13.7 由 mise 管理；常规命令使用 `mise exec -- uv ...`。
 - `dev` 依赖组：ruff、mypy、pytest、pytest-asyncio、pytest-cov。
-- 运行期依赖：httpx、pydantic。站点构建依赖 markdown-it-py，位于 `docs` 依赖组。
+- 运行期依赖：httpx、pydantic、pgvector、psycopg。站点构建依赖 markdown-it-py，位于 `docs` 依赖组。
 - Docker 仅安装在 VMware 虚拟机中，Windows 宿主机没有 Docker 命令。
 
 ## 常用命令
 
 - `uv sync --group docs`：首次安装或依赖变更后同步环境。
-- `uv run phase1/dayNN/python/example.py`：运行单个练习脚本。
+- `uv run phaseN/dayNN/example.py`：运行直接放在日期目录下的练习脚本。
+- 有包内导入时使用 `uv run python -m phaseN.dayNN.module`。
 - `uv run pytest -q`：运行全仓库测试。
 - `uv run ruff check . && uv run ruff format --check .`：静态检查与格式检查。
 - `uv run --group docs mypy .`：类型检查。

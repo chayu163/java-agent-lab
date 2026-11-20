@@ -136,4 +136,4 @@ def check_examples() -> None:
 
 if __name__ == "__main__":
     check_examples()
-    print("protocol: all checks passed")
+    print("protocol：全部断言通过")

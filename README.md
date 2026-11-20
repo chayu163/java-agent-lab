@@ -27,7 +27,7 @@ phaseN/
 └── dayNN/
     ├── README.md   # 当天知识导读：先读概念，再做练习
     ├── java/       # 对照阅读用的 Java 原版
-    └── python/     # Python 练习与当天产出
+    └── *.py        # Python 练习与当天产出，新日期直接放在 dayNN 下
 
 notes/
 └── phaseN/
@@ -56,7 +56,8 @@ docs/             # GitHub Pages 站点源码；content/ 是生成物，不入�
 
 ```bash
 uv sync --group docs              # 首次，或改了依赖之后
-uv run phase1/day03/python/05_fetch.py   # 跑当天脚本
+uv run phase1/day03/python/05_fetch.py   # 跑已有日期的脚本
+uv run phase2/day07/chunking.py         # 新日期脚本直接放在 dayNN 下
 uv run pytest -q                  # 跑全部测试，从仓库根收集
 ```
 

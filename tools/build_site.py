@@ -506,34 +506,38 @@ def copy_note_assets() -> None:
 
 
 def build_code(manifest: dict[str, Any]) -> None:
-    # 站点索引使用 dayNN 作为键，代码内容仍按 phase/day 存放。
+    # 站点索引使用 dayNN 作为键；新日期的 Python 文件位于日期根目录。
     for day_dir in sorted(ROOT.glob("phase*/day*")):
         if not day_dir.is_dir():
             continue
         day = day_dir.name
-        for sub in ("python", "java"):
-            for path in sorted((day_dir / sub).glob("*")):
-                if path.suffix not in (".py", ".java"):
-                    continue
-                lang = code_lang(path)
-                rendered = (
-                    f'<pre class="code-block" data-lang="{lang}"><code>'
-                    f"{highlight(path.read_text(encoding='utf-8'), lang)}</code></pre>"
-                )
-                target_dir = CONTENT_DIR / "code" / day
-                target_dir.mkdir(parents=True, exist_ok=True)
-                out_name = f"{sub}-{path.stem}.html"
-                (target_dir / out_name).write_text(rendered, encoding="utf-8")
-                manifest["code"].append(
-                    {
-                        "day": day,
-                        "name": path.name,
-                        "dir": sub,
-                        "lang": lang,
-                        "lines": len(path.read_text(encoding="utf-8").splitlines()),
-                        "path": f"code/{day}/{out_name}",
-                    }
-                )
+        sources = [("python", path) for path in day_dir.glob("*.py")]
+        sources.extend(
+            (sub, path) for sub in ("python", "java") for path in (day_dir / sub).glob("*")
+        )
+        for sub, path in sorted(sources, key=lambda item: (item[0], item[1].name)):
+            if path.name == "__init__.py" or path.suffix not in (".py", ".java"):
+                continue
+            lang = code_lang(path)
+            source = path.read_text(encoding="utf-8")
+            rendered = (
+                f'<pre class="code-block" data-lang="{lang}"><code>'
+                f"{highlight(source, lang)}</code></pre>"
+            )
+            target_dir = CONTENT_DIR / "code" / day
+            target_dir.mkdir(parents=True, exist_ok=True)
+            out_name = f"{sub}-{path.stem}.html"
+            (target_dir / out_name).write_text(rendered, encoding="utf-8")
+            manifest["code"].append(
+                {
+                    "day": day,
+                    "name": path.name,
+                    "dir": sub,
+                    "lang": lang,
+                    "lines": len(source.splitlines()),
+                    "path": f"code/{day}/{out_name}",
+                }
+            )
 
 
 def build_research(manifest: dict[str, Any]) -> None:

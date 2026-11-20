@@ -80,16 +80,16 @@ assistant 每请求一次工具，就需要一条对应 `tool_call_id` 的回填
 
 | 文件 | 目标 | 验收 |
 |---|---|---|
-| `python/protocol.py` | 生成工具 schema、解析 `finish_reason` 与 `tool_calls` | 固定响应自检通过；这是已完成的协议练习 |
-| `python/roundtrip.py` | 构造 tool 结果并检查请求与回填 ID 是否一一对应 | TODO 完成后，完整、漏回填、多回填和错误 role 用例都通过 |
-| `python/tool_call_session.py` | 将协议接入完整多轮会话 | 完成 roundtrip 后，默认离线流程走完两轮并保存请求/响应；`--real` 才访问外部 API |
+| `protocol.py` | 生成工具 schema、解析 `finish_reason` 与 `tool_calls` | 固定响应自检通过；这是已完成的协议练习 |
+| `roundtrip.py` | 构造 tool 结果并检查请求与回填 ID 是否一一对应 | TODO 完成后，完整、漏回填、多回填和错误 role 用例都通过 |
+| `tool_call_session.py` | 将协议接入完整多轮会话 | 完成 roundtrip 后，默认离线流程走完两轮并保存请求/响应；`--real` 才访问外部 API |
 
 先运行已完成的协议练习，再实现 `roundtrip.py` 中的两个函数。roundtrip 脚本在 TODO 完成前会按预期抛出 `NotImplementedError`。完成后运行离线完整会话：
 
 ```bash
-uv run phase2/day06/python/protocol.py
-uv run phase2/day06/python/roundtrip.py
-uv run phase2/day06/python/tool_call_session.py
+uv run python -m phase2.day06.protocol
+uv run python -m phase2.day06.roundtrip
+uv run python -m phase2.day06.tool_call_session
 ```
 
 真实 API 验证使用 `--real`，并需要 `OPENAI_BASE_URL`、`OPENAI_API_KEY`、`OPENAI_MODEL`。默认离线模式不依赖 API key、旧日志或网络。会话日志写入 `phase2/day06/logs/`。完成离线检查后再进行一次真机请求，核对实际 provider 的 `finish_reason`、参数格式和回填 ID。

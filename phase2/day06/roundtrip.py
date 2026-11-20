@@ -16,7 +16,7 @@ def make_tool_result(
     error: str | None = None,
 ) -> Message:
     """构造 role=tool 消息；error 为 None 表示成功结果。"""
-    raise NotImplementedError("TODO: 生成含 role、tool_call_id 和 JSON content 的消息")
+    raise NotImplementedError("TODO：生成包含 role、tool_call_id 和 JSON content 的消息")
 
 
 def validate_roundtrip(calls: list[ToolCall], results: list[Message]) -> list[str]:
@@ -27,7 +27,7 @@ def validate_roundtrip(calls: list[ToolCall], results: list[Message]) -> list[st
     - 回填 id 唯一
     - 每个请求 id 恰有一个回填，不能缺少或多出
     """
-    raise NotImplementedError("TODO: 检查请求与回填的 ID 集合及重复项")
+    raise NotImplementedError("TODO：检查请求与回填的 ID 集合及重复项")
 
 
 def check_examples() -> None:
@@ -62,4 +62,4 @@ def check_examples() -> None:
 
 if __name__ == "__main__":
     check_examples()
-    print("roundtrip: all checks passed")
+    print("roundtrip：全部断言通过")

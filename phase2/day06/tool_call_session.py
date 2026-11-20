@@ -1,4 +1,4 @@
-"""Run a two-turn function-calling session with a fake or real completion API."""
+"""使用假模型或真实 API 执行两轮 function calling 会话。"""
 
 from __future__ import annotations
 
@@ -13,9 +13,15 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from protocol import assistant_message, finish_action, tool_calls_from, tool_schema
 from pydantic import BaseModel, Field
-from roundtrip import make_tool_result, validate_roundtrip
+
+from phase2.day06.protocol import (
+    assistant_message,
+    finish_action,
+    tool_calls_from,
+    tool_schema,
+)
+from phase2.day06.roundtrip import make_tool_result, validate_roundtrip
 
 Message = dict[str, Any]
 Response = dict[str, Any]
@@ -28,7 +34,7 @@ ORDERS: dict[str, dict[str, Any]] = {
 }
 
 SYSTEM_PROMPT = "你是电商售后助手。查询类信息必须先调用工具获取，不要凭空回答。"
-LOGS_DIR = Path(__file__).resolve().parents[1] / "logs"
+LOGS_DIR = Path(__file__).resolve().parent / "logs"
 
 
 class QueryOrderArgs(BaseModel):
