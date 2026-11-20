@@ -20,6 +20,9 @@ notes/.obsidian/
 # 站点生成物（CI 每次构建重生成，不入库）
 docs/content/
 
+# 会话日志（含 API 响应原文，本机调试用）
+phase2/day06/logs/
+
 # 本机工具配置（launch.json 里是本机 venv 的绝对路径）
 .claude/
 
