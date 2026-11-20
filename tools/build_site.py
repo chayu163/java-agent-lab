@@ -29,6 +29,7 @@ NOTES_DIR = ROOT / "notes"
 DOCS_DIR = ROOT / "docs"
 CONTENT_DIR = DOCS_DIR / "content"
 RESEARCH_DIR = ROOT / "research"
+CURRICULUM_PATH = ROOT / "curriculum.json"
 
 CALLOUT_TITLES = {
     "note": "笔记",
@@ -464,7 +465,7 @@ def reset_content_dir() -> None:
 
 
 def build_notes(manifest: dict[str, Any]) -> None:
-    # 笔记在 notes/phase*/dayNN/ 下；day 名作为站点索引键，与 roadmap-data.js 的 days 数组对应
+    # 站点索引使用 dayNN 作为键，笔记内容仍按 phase/day 存放。
     for path in sorted(NOTES_DIR.glob("phase*/day*/*.md")):
         day = path.parent.name
         meta, rendered = render_markdown(path.read_text(encoding="utf-8"))
@@ -505,7 +506,7 @@ def copy_note_assets() -> None:
 
 
 def build_code(manifest: dict[str, Any]) -> None:
-    # 代码在 phase*/dayNN/ 下；day 名作为站点索引键，与 roadmap-data.js 的 days 数组对应
+    # 站点索引使用 dayNN 作为键，代码内容仍按 phase/day 存放。
     for day_dir in sorted(ROOT.glob("phase*/day*")):
         if not day_dir.is_dir():
             continue
@@ -552,22 +553,52 @@ def build_research(manifest: dict[str, Any]) -> None:
         )
 
 
-ROADMAP_JS = DOCS_DIR / "assets" / "roadmap-data.js"
+def day_label(days: list[str]) -> str:
+    numbers = sorted({int(day.removeprefix("day")) for day in days})
+    if not numbers:
+        return ""
+    if len(numbers) == 1:
+        return f"Day {numbers[0]}"
+    if numbers == list(range(numbers[0], numbers[-1] + 1)):
+        return f"Day {numbers[0]}-{numbers[-1]}"
+    return "Day " + ", ".join(str(number) for number in numbers)
 
 
-def check_roadmap_coverage() -> list[str]:
-    """路线图节点是手写的，容易漏挂已经产出的笔记。
+def build_curriculum(manifest: dict[str, Any]) -> set[str]:
+    curriculum = json.loads(CURRICULUM_PATH.read_text(encoding="utf-8"))
+    completed_days = {item["day"] for item in manifest["notes"] if item.get("status") == "done"}
+    scheduled_days: set[str] = set()
+    manifest_nodes: dict[str, Any] = {}
 
-    只查一个方向：notes/ 里存在的天，路线图有没有引用。
-    反向不查——路线图会预先引用还没开始的天，那是正常的。
-    """
-    if not ROADMAP_JS.exists():
-        return []
-    referenced = set(re.findall(r'"(day\d{2})"', ROADMAP_JS.read_text(encoding="utf-8")))
-    written = {path.name for path in NOTES_DIR.glob("phase*/day[0-9][0-9]") if path.is_dir()}
+    for node_id, rows in curriculum["nodes"].items():
+        node_days: set[str] = set()
+        plan = []
+        for row in rows:
+            days = row["days"]
+            node_days.update(days)
+            scheduled_days.update(days)
+            plan.append(
+                {
+                    "day": row.get("label") or day_label(days),
+                    "task": row["task"],
+                    "out": row["out"],
+                    "done": bool(days) and all(day in completed_days for day in days),
+                }
+            )
+        manifest_nodes[node_id] = {
+            "days": sorted(node_days, key=lambda day: int(day.removeprefix("day"))),
+            "plan": plan,
+        }
+
+    manifest["curriculum"] = manifest_nodes
+    return scheduled_days
+
+
+def check_curriculum_coverage(scheduled_days: set[str]) -> list[str]:
+    written_days = {path.parent.name for path in NOTES_DIR.glob("phase*/day*/*.md")}
     return [
-        f"notes/{day} 有内容，但 roadmap-data.js 没有引用它，站点上会看不到"
-        for day in sorted(written - referenced)
+        f"notes/{day} 有内容，但 curriculum.json 没有安排它，站点路线图无法关联"
+        for day in sorted(written_days - scheduled_days)
     ]
 
 
@@ -580,6 +611,7 @@ def main() -> None:
         "research": [],
     }
     build_notes(manifest)
+    scheduled_days = build_curriculum(manifest)
     copy_note_assets()
     build_code(manifest)
     build_research(manifest)
@@ -591,7 +623,7 @@ def main() -> None:
         f"research={len(manifest['research'])} -> {CONTENT_DIR.relative_to(ROOT)}"
     )
 
-    warnings = check_roadmap_coverage()
+    warnings = check_curriculum_coverage(scheduled_days)
     for warning in warnings:
         print(f"warn: {warning}", file=sys.stderr)
     if warnings:

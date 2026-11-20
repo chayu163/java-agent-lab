@@ -7,7 +7,7 @@
   const $ = (sel, root = document) => root.querySelector(sel);
 
   const state = {
-    manifest: { notes: [], code: [], research: [], generatedAt: "" },
+    manifest: { notes: [], code: [], research: [], curriculum: {}, generatedAt: "" },
     activeNode: null,
     activeTab: "overview",
   };
@@ -16,6 +16,8 @@
 
   const notesByDay = () => groupBy(state.manifest.notes, "day");
   const codeByDay = () => groupBy(state.manifest.code, "day");
+  const nodeCurriculum = (node) =>
+    state.manifest.curriculum?.[node.id] || { days: [], plan: [] };
 
   function groupBy(list, key) {
     return list.reduce((acc, item) => {
@@ -26,16 +28,16 @@
 
   function nodeNotes(node) {
     const byDay = notesByDay();
-    return (node.days || []).flatMap((day) => byDay[day] || []);
+    return nodeCurriculum(node).days.flatMap((day) => byDay[day] || []);
   }
 
   function nodeCode(node) {
     const byDay = codeByDay();
-    return (node.days || []).flatMap((day) => byDay[day] || []);
+    return nodeCurriculum(node).days.flatMap((day) => byDay[day] || []);
   }
 
   function nodeRatio(node) {
-    const days = node.days || [];
+    const days = nodeCurriculum(node).days;
     if (!days.length) return { label: "未排期", filled: 0, total: 0 };
     const byDay = notesByDay();
     const code = codeByDay();
@@ -171,7 +173,7 @@
       ? `<div class="gap-note"><span>⚠</span><span>${esc(node.gap)}</span></div>`
       : "";
 
-    const plan = node.plan
+    const plan = nodeCurriculum(node).plan
       .map(
         (row) => `
         <div class="plan-row${row.done ? " is-done" : ""}">
@@ -202,10 +204,11 @@
   function renderDocList(panelName, items, node) {
     const panel = $(`#panel-${panelName}`);
     if (!items.length) {
+      const firstDay = nodeCurriculum(node).days[0] || "dayNN";
       panel.innerHTML =
         panelName === "notes"
-          ? `<div class="empty">这个节点还没有产出的笔记。<br>每天写完 <code>notes/${node.days[0] || "dayNN"}/</code> 后会自动出现在这里。</div>`
-          : `<div class="empty">这个节点还没有产出的代码。<br>每天写完 <code>${node.days[0] || "dayNN"}/python/</code> 后会自动出现在这里。</div>`;
+          ? `<div class="empty">这个节点还没有产出的笔记。<br>每天写完 <code>notes/${firstDay}/</code> 后会自动出现在这里。</div>`
+          : `<div class="empty">这个节点还没有产出的代码。<br>每天写完 <code>${firstDay}/python/</code> 后会自动出现在这里。</div>`;
       return;
     }
 

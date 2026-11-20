@@ -9,6 +9,7 @@
 
 | 站点区块 | 来源 |
 |---|---|
+| 路线图每日计划 | `curriculum.json` |
 | 笔记 | `notes/phase*/dayNN/*.md` |
 | 笔记配图 | `notes/phase*/dayNN/assets/*.html`（原样拷贝） |
 | 代码 | `phase*/dayNN/python/*.py`、`phase*/dayNN/java/*.java` |
@@ -52,7 +53,7 @@ docs/
 ├── index.html            单页应用：路线图 + 节点抽屉
 ├── assets/style.css      设计系统（深/浅主题、分带强调色）
 ├── assets/app.js         交互层
-├── assets/roadmap-data.js  路线图节点、分带、每日计划（手写内容）
+├── assets/roadmap-data.js  路线图节点、分带与说明
 └── content/              构建产物，gitignore
     ├── notes/dayNN/      渲染后的笔记正文 + assets/ 里的配图（站点索引键仍是 dayNN）
     ├── code/dayNN/       高亮后的代码片段
@@ -65,7 +66,7 @@ docs/
 - **节点抽屉**：点节点打开，三个页签——概览（计划与产出）、笔记、代码。
 - **调研与计划**：右上角按钮，渲染 `research/` 下全部 markdown。
 
-改路线图的节点或每日计划，要同步改 `docs/assets/roadmap-data.js`。
+节点的名称、说明和分带维护在 `docs/assets/roadmap-data.js`。每日任务、产出和节点关联统一维护在根目录 `curriculum.json`。完成状态根据笔记 frontmatter 的 `status: done` 生成。
 
 ## 部署
 

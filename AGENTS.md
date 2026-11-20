@@ -17,11 +17,11 @@
 - `tools/build_site.py`：站点内容构建脚本
 - `docs/`：GitHub Pages 站点（纯静态，无框架）；`docs/content/` 是生成物，不入库
 
-目录名里的 `dayNN` 编号在仓库内全局唯一，站点索引与 `roadmap-data.js` 的 `days` 数组都按它匹配，新增阶段只建 `phaseN/` 目录、不改编号。
+目录名里的 `dayNN` 编号在仓库内全局唯一，站点索引与 `curriculum.json` 都按它匹配，新增阶段只建 `phaseN/` 目录、不改编号。
 
 ## 进度
 
-阶段划分与每日内容以计划原文为准（[research/2026-11-12/AI-Agent学习计划-30天.md](research/2026-11-12/AI-Agent学习计划-30天.md)），这里只记状态，不重复抄内容。
+计划原文（[research/2026-11-12/AI-Agent学习计划-30天.md](research/2026-11-12/AI-Agent学习计划-30天.md)）记录制定时的决策依据，站点当前每日任务、产出与节点归属以根目录 `curriculum.json` 为准。这里仅记录学习进度。
 
 | 阶段 | 天数 | 状态 |
 |---|---|---|
@@ -76,10 +76,10 @@
 `docs/` 是学习路径站点，已上线：<https://chayu163.github.io/java-agent-lab/>
 推到 `main` 由 `.github/workflows/pages.yml` 自动构建发布（Pages 的 Source 是 GitHub Actions，不是分支部署）。
 它不单独维护内容：笔记取自 `notes/`，代码取自 `dayNN/`，调研取自 `research/`，笔记里的 `assets/` 会一起拷进站点。
-路线图的节点与每日计划手写在 `docs/assets/roadmap-data.js`——改计划时要同步改这里。
+路线图的视觉节点与说明维护在 `docs/assets/roadmap-data.js`，每日任务、产出和节点关联维护在根目录 `curriculum.json`。完成状态由笔记 frontmatter 的 `status: done` 生成。
 
-新建 `notes/dayNN/` 后，必须把 `dayNN` 加进 `roadmap-data.js` 对应节点的 `days` 数组，
-否则构建脚本会报警并以非零退出（CI 会红）。这是唯一需要手动同步的地方。
+新建笔记后，必须把对应 `dayNN` 加入 `curriculum.json`，
+否则构建脚本会报警并以非零退出（CI 会红）。
 
 ## 质量门
 

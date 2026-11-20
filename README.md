@@ -21,6 +21,8 @@ Java 开发者补齐 Python + Agent 技术栈的 30 天学习仓库。路线基�
 ## 目录
 
 ```text
+curriculum.json   # 站点每日任务、产出与节点关联的唯一数据源
+
 phaseN/
 └── dayNN/
     ├── README.md   # 当天知识树（从 day03 起）
@@ -45,6 +47,8 @@ docs/             # GitHub Pages 站点源码；content/ 是生成物，不入�
 `dayNN` 编号在仓库内全局唯一；阶段 5 结束时会得到 `phase1/` 到 `phase5/` 五个目录。
 
 根目录是唯一的 uv 项目，30 天共享一个 `.venv`；依赖统一在 `pyproject.toml` 声明。
+
+站点路线图的每日任务、产出和节点关联维护在 `curriculum.json`；完成状态由当天笔记 frontmatter 的 `status: done` 生成。
 
 ## 常用命令
 

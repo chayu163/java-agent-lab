@@ -1,0 +1,225 @@
+{
+  "nodes": {
+    "python": [
+      {
+        "days": ["day01"],
+        "task": "环境、项目结构、Java→Python 差异清单",
+        "out": "差异笔记 + 订单状态机翻译"
+      },
+      {
+        "days": ["day02"],
+        "task": "装饰器 / 生成器 / with / typing / Pydantic v2",
+        "out": "一套 Pydantic Tool schema"
+      },
+      {
+        "days": ["day03"],
+        "task": "asyncio：event loop、Task、gather、Semaphore、timeout",
+        "out": "httpx 并发调 5 个 API（带超时与并发上限）"
+      },
+      {
+        "days": ["day04"],
+        "task": "pytest：fixture、参数化、mock、覆盖率",
+        "out": "给 Day 3 代码写 5 个测试"
+      },
+      {
+        "days": ["day05"],
+        "task": "mini agent loop：解析 → 路由 → 执行 → 回填 → 终止",
+        "out": "mini_loop.py（不用真 LLM）"
+      }
+    ],
+    "sql": [
+      {
+        "days": [],
+        "label": "复用",
+        "task": "Java 后端的 MySQL 经验直接迁移，不需要重学",
+        "out": "—"
+      },
+      {
+        "days": ["day21", "day22"],
+        "task": "设计 pgvector schema（向量表 + 元数据表）",
+        "out": "schema 设计写进 ADR"
+      }
+    ],
+    "deploy": [
+      {
+        "days": ["day07"],
+        "task": "Docker 起 pgvector，写 ingestion + top-k 查询",
+        "out": "本地 pgvector 检索 demo"
+      },
+      {
+        "days": ["day29"],
+        "task": "Docker Compose 一键起（pg + api）",
+        "out": "可复现的仓库"
+      }
+    ],
+    "fastapi": [
+      {
+        "days": ["day14"],
+        "task": "阅读 MaxKB 的 Django 项目结构与 ASGI 启动链路",
+        "out": "启动链路图"
+      },
+      {
+        "days": ["day15"],
+        "task": "追踪文档解析、分块、embedding 与入库",
+        "out": "ingestion 数据流"
+      },
+      {
+        "days": ["day18"],
+        "task": "阅读权限、异步任务、日志与模型管理",
+        "out": "工程细节笔记"
+      },
+      {
+        "days": ["day21", "day22"],
+        "task": "FastAPI 目录结构、依赖注入、配置",
+        "out": "架构图 + ADR"
+      },
+      {
+        "days": ["day23", "day24"],
+        "task": "检索 API + 测试",
+        "out": "可用的检索服务"
+      }
+    ],
+    "toolcall": [
+      {
+        "days": ["day06"],
+        "task": "function calling 协议细节 + 调一次兼容 OpenAI 协议的 API",
+        "out": "完整工具调用会话的日志笔记"
+      },
+      {
+        "days": ["day08"],
+        "task": "读 MCP 规范：tools / resources / prompts / transport",
+        "out": "「为什么 MCP 在 function calling 之上」500 字"
+      },
+      {
+        "days": ["day25", "day26"],
+        "task": "实现 2 个 MCP 工具，接进 LangGraph 主链路",
+        "out": "主链路可跑通"
+      }
+    ],
+    "langgraph": [
+      {
+        "days": ["day09"],
+        "task": "阅读 OpenManus 目录结构、依赖和启动入口",
+        "out": "30 分钟画出目录地图"
+      },
+      {
+        "days": ["day10"],
+        "task": "追踪 Agent loop、工具注册与并发执行",
+        "out": "loop 时序图"
+      },
+      {
+        "days": ["day11"],
+        "task": "阅读 planner、memory 与 prompt 组织",
+        "out": "规划与记忆模块笔记"
+      },
+      {
+        "days": ["day12"],
+        "task": "阅读 sandbox、browser 工具、异常处理与终止条件",
+        "out": "工具系统笔记"
+      },
+      {
+        "days": ["day13"],
+        "task": "综合分析 OpenManus 架构并对照 boss-agent-cli",
+        "out": "架构导读、架构图与设计借鉴清单"
+      },
+      {
+        "days": ["day21", "day22"],
+        "task": "设计状态图：意图 → 检索 → 回答 → 工具 → 升级人工",
+        "out": "架构图 + ADR"
+      },
+      {
+        "days": ["day25", "day26"],
+        "task": "StateGraph、节点、条件边、接入 LLM、人工确认",
+        "out": "主链路可跑通"
+      }
+    ],
+    "rag": [
+      {
+        "days": ["day16"],
+        "task": "追踪 MaxKB 检索、混合召回、rerank 与 prompt 组装",
+        "out": "检索链路笔记"
+      },
+      {
+        "days": ["day17"],
+        "task": "阅读应用编排、工作流节点与 Agent 模式",
+        "out": "编排模块笔记"
+      },
+      {
+        "days": ["day19", "day20"],
+        "task": "综合分析 MaxKB 架构并映射 JD 关键词",
+        "out": "架构图、RAG 数据流与 JD 实现位置映射表"
+      },
+      {
+        "days": ["day07"],
+        "task": "embedding 原理、chunk 策略、rerank；Docker 起 pgvector",
+        "out": "本地 pgvector 检索 demo"
+      },
+      {
+        "days": ["day08"],
+        "task": "白板 RAG 全链路",
+        "out": "RAG 链路白板图"
+      },
+      {
+        "days": ["day23", "day24"],
+        "task": "知识 ingestion：文档 → chunk → embedding → pgvector",
+        "out": "可用的检索服务"
+      }
+    ],
+    "eval": [
+      {
+        "days": ["day08"],
+        "task": "评测概念：召回 / 命中 / judge / 回归",
+        "out": "概念笔记"
+      },
+      {
+        "days": ["day27", "day28"],
+        "task": "deepeval：30-50 条 eval set，pytest 集成",
+        "out": "eval 报告（带数字）"
+      }
+    ],
+    "proj": [
+      {
+        "days": ["day21", "day22"],
+        "task": "架构设计：状态图、schema、目录结构",
+        "out": "架构图 + ADR"
+      },
+      {
+        "days": ["day23", "day24"],
+        "task": "知识 ingestion + 检索 API",
+        "out": "可用的检索服务"
+      },
+      {
+        "days": ["day25", "day26"],
+        "task": "LangGraph 编排 + MCP 工具 + 人机协同",
+        "out": "主链路跑通"
+      },
+      {
+        "days": ["day27", "day28"],
+        "task": "deepeval 评测集与回归",
+        "out": "eval 报告"
+      },
+      {
+        "days": ["day29"],
+        "task": "Docker Compose + README + 架构图",
+        "out": "可复现的仓库"
+      },
+      {
+        "days": ["day30"],
+        "task": "简历三段话 + 面试自测",
+        "out": "简历素材"
+      }
+    ],
+    "resume": [
+      {
+        "days": ["day30"],
+        "task": "简历三段话（STAR 化，对齐 JD 关键词）",
+        "out": "简历素材"
+      },
+      {
+        "days": ["day30"],
+        "task": "20 题面试自测 + 复盘",
+        "out": "自测清单"
+      }
+    ]
+  }
+}
