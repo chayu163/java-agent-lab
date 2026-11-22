@@ -139,7 +139,15 @@ async def run_session(
     for _turn in range(max_turns):
         body = request_body(model, messages)
         response = await complete(body)
-        exchanges.append({"request": body, "response": response})
+        # 请求体必须在发送时刻深拷贝：body["messages"] 与循环里的 messages 是同一个
+        # 列表对象，后续 append 会改到已记录的"历史请求"，日志里第 1 轮会凭空多出
+        # 第 2 轮才存在的消息，误导排查。
+        exchanges.append(
+            {
+                "request": {**body, "messages": [dict(m) for m in body["messages"]]},
+                "response": response,
+            }
+        )
 
         message = assistant_message(response)
         action = finish_action(response["choices"][0].get("finish_reason", ""))
@@ -151,7 +159,6 @@ async def run_session(
             raise RuntimeError("模型响应因长度限制被截断")
         if action == "filtered":
             raise RuntimeError("模型响应被内容过滤策略拦截")
-
         calls = tool_calls_from(message)
         if not calls:
             raise ValueError("finish_reason=tool_calls，但响应没有工具调用")
