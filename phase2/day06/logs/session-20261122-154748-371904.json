@@ -1,0 +1,244 @@
+{
+  "answer": "A1001 已发货，承运方是顺丰，单号 SF1234567890。",
+  "elapsed_s": 0.001,
+  "messages": [
+    {
+      "role": "system",
+      "content": "你是电商售后助手。查询类信息必须先调用工具获取，不要凭空回答。"
+    },
+    {
+      "role": "user",
+      "content": "A1001 发货了吗？发的什么快递？"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_1",
+          "type": "function",
+          "function": {
+            "name": "query_order",
+            "arguments": "{\"order_id\": \"A1001\"}"
+          }
+        },
+        {
+          "id": "call_2",
+          "type": "function",
+          "function": {
+            "name": "get_logistics",
+            "arguments": "{\"order_id\": \"A1001\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_1",
+      "content": "{\"ok\": true, \"data\": {\"order_id\": \"A1001\", \"status\": \"已发货\"}}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_2",
+      "content": "{\"ok\": true, \"data\": {\"order_id\": \"A1001\", \"carrier\": \"顺丰\", \"tracking\": \"SF1234567890\"}}"
+    },
+    {
+      "role": "assistant",
+      "content": "A1001 已发货，承运方是顺丰，单号 SF1234567890。"
+    }
+  ],
+  "exchanges": [
+    {
+      "request": {
+        "model": "scripted-model",
+        "messages": [
+          {
+            "role": "system",
+            "content": "你是电商售后助手。查询类信息必须先调用工具获取，不要凭空回答。"
+          },
+          {
+            "role": "user",
+            "content": "A1001 发货了吗？发的什么快递？"
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "query_order",
+              "description": "按订单号查询订单状态。",
+              "parameters": {
+                "description": "按订单号查询订单状态。",
+                "properties": {
+                  "order_id": {
+                    "description": "订单号，例如 A1001",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "order_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "get_logistics",
+              "description": "按订单号查询物流信息。",
+              "parameters": {
+                "description": "按订单号查询物流信息。",
+                "properties": {
+                  "order_id": {
+                    "description": "订单号，例如 A1001",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "order_id"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        ],
+        "tool_choice": "auto",
+        "parallel_tool_calls": true,
+        "max_tokens": 512
+      },
+      "response": {
+        "choices": [
+          {
+            "message": {
+              "role": "assistant",
+              "content": null,
+              "tool_calls": [
+                {
+                  "id": "call_1",
+                  "type": "function",
+                  "function": {
+                    "name": "query_order",
+                    "arguments": "{\"order_id\": \"A1001\"}"
+                  }
+                },
+                {
+                  "id": "call_2",
+                  "type": "function",
+                  "function": {
+                    "name": "get_logistics",
+                    "arguments": "{\"order_id\": \"A1001\"}"
+                  }
+                }
+              ]
+            },
+            "finish_reason": "tool_calls"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "model": "scripted-model",
+        "messages": [
+          {
+            "role": "system",
+            "content": "你是电商售后助手。查询类信息必须先调用工具获取，不要凭空回答。"
+          },
+          {
+            "role": "user",
+            "content": "A1001 发货了吗？发的什么快递？"
+          },
+          {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "query_order",
+                  "arguments": "{\"order_id\": \"A1001\"}"
+                }
+              },
+              {
+                "id": "call_2",
+                "type": "function",
+                "function": {
+                  "name": "get_logistics",
+                  "arguments": "{\"order_id\": \"A1001\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": "{\"ok\": true, \"data\": {\"order_id\": \"A1001\", \"status\": \"已发货\"}}"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_2",
+            "content": "{\"ok\": true, \"data\": {\"order_id\": \"A1001\", \"carrier\": \"顺丰\", \"tracking\": \"SF1234567890\"}}"
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "query_order",
+              "description": "按订单号查询订单状态。",
+              "parameters": {
+                "description": "按订单号查询订单状态。",
+                "properties": {
+                  "order_id": {
+                    "description": "订单号，例如 A1001",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "order_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "get_logistics",
+              "description": "按订单号查询物流信息。",
+              "parameters": {
+                "description": "按订单号查询物流信息。",
+                "properties": {
+                  "order_id": {
+                    "description": "订单号，例如 A1001",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "order_id"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        ],
+        "tool_choice": "auto",
+        "parallel_tool_calls": true,
+        "max_tokens": 512
+      },
+      "response": {
+        "choices": [
+          {
+            "message": {
+              "role": "assistant",
+              "content": "A1001 已发货，承运方是顺丰，单号 SF1234567890。"
+            },
+            "finish_reason": "stop"
+          }
+        ]
+      }
+    }
+  ]
+}

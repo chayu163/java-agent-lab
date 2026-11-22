@@ -19,7 +19,7 @@ status: done
 - 指出 `arguments` 解析、工具执行、回填配对三个环节各自的失败方式与处理边界。
 - 从日志的 token 数读出历史全量重发的成本曲线。
 
-主产出是 [tool_call_session.py](../../../phase2/day06/tool_call_session.py)。协议形状练习见 [protocol.py](../../../phase2/day06/protocol.py) 与 [roundtrip.py](../../../phase2/day06/roundtrip.py)。本文引用的数据全部来自真机会话日志 `phase2/day06/logs/session-20261122-095752-078827.json`（模型 `deepseek-v4.1-flash`，两轮请求，总耗时 11.5 秒），JSON 片段为日志原文。
+主产出是 [tool_call_session.py](../../../phase2/day06/tool_call_session.py)。协议形状练习见 [protocol.py](../../../phase2/day06/protocol.py) 与 [roundtrip.py](../../../phase2/day06/roundtrip.py)。本文引用的数据全部来自真机会话日志 [session-20261122-154748-371904.json](../../../phase2/day06/logs/session-20261122-154748-371904.json)（模型 `deepseek-v4.1-flash`，两轮请求，总耗时 11.5 秒），JSON 片段为日志原文。该日志是仓库中保留的唯一会话日志示例，后续日志不入库；引用的 token 数与消息形状以它为准，重新生成的日志数字会因模型与提示词变化而不同。
 
 ## 1. 会话时序：六条消息，两轮请求
 
