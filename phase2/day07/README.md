@@ -57,7 +57,7 @@ docker compose -f phase2/day07/compose.yaml up -d
 compose 使用开发环境账号 `agent` 和数据库 `rag_lab`，只用于本地学习。Windows 宿主机运行 Python demo 时，DSN 中的主机名使用虚拟机 IP，并确保虚拟机映射的 5432 端口可从宿主机访问。
 
 ```powershell
-$env:PGVECTOR_DSN = "postgresql://agent:agent_dev_only@<VM_IP>:5432/rag_lab"
+$env:PGVECTOR_DSN = "postgresql://agent:123456@<VM_IP>:5432/rag_lab"
 $env:EMBEDDING_BASE_URL = "https://<embedding-service>/v1"
 $env:EMBEDDING_MODEL = "<embedding-model>"
 $env:EMBEDDING_API_KEY = "<key-if-required>"
