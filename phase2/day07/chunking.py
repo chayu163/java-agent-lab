@@ -12,7 +12,19 @@ def chunk_text(text: str, size: int, overlap: int) -> list[str]:
     - 空文本返回空列表。
     - 不跳过字符，也不重复生成最后一个 chunk。
     """
-    raise NotImplementedError("TODO：实现带 overlap 的固定窗口切分")
+    if size <= 0:
+        raise ValueError("size 必须大于 0")
+    if overlap >= size or overlap < 0:
+        raise ValueError("overlap 必须满足 0 <= overlap < size")
+    if not text:
+        return []
+
+    result: list[str] = []
+    start = 0
+    while start < len(text) - overlap:
+        result.append(text[start : start + size])
+        start = start + size - overlap
+    return result
 
 
 def check_examples() -> None:

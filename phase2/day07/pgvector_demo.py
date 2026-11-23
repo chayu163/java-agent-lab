@@ -1,8 +1,14 @@
-"""将示例文档写入 pgvector，并按查询向量检索 chunks。"""
+"""将示例文档写入 pgvector，并按查询向量检索 chunks。
+
+运行时把本次的 chunk 清单、查询与 top-k 结果写进 logs/，作为笔记引用的实证。
+"""
 
 from __future__ import annotations
 
+import json
 import os
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -11,6 +17,8 @@ from pgvector import Vector
 from pgvector.psycopg import register_vector
 
 from phase2.day07.chunking import chunk_text
+
+LOGS_DIR = Path(__file__).resolve().parent / "logs"
 
 DOCUMENTS = {
     "shipping.md": """
@@ -143,6 +151,41 @@ def search(dsn: str, query_vector: list[float], top_k: int) -> list[dict[str, An
             ]
 
 
+def save_log(
+    chunks: list[dict[str, Any]],
+    vectors: list[list[float]],
+    query_vector: list[float],
+    results: list[dict[str, Any]],
+    *,
+    dsn_host: str,
+    model: str,
+) -> Path:
+    """把本次运行的关键事实写成 JSON：chunk 切分、维度、模型、top-k 结果。"""
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    path = LOGS_DIR / f"retrieval-{stamp}.json"
+    path.write_text(
+        json.dumps(
+            {
+                "embedding_model": model,
+                "embedding_dimensions": len(query_vector),
+                "dsn_host": dsn_host,
+                "chunks": [
+                    {**chunk, "dimensions": len(vector)}
+                    for chunk, vector in zip(chunks, vectors, strict=True)
+                ],
+                "query": QUERY,
+                "top_k": len(results),
+                "results": results,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
 def main() -> None:
     dsn = os.environ.get("PGVECTOR_DSN")
     embedding_base_url = os.environ.get("EMBEDDING_BASE_URL")
@@ -172,6 +215,17 @@ def main() -> None:
             f"{result['source']}#{result['chunk_index']} "
             f"distance={result['distance']:.4f} {result['content'].strip()}"
         )
+
+    dsn_host = psycopg.conninfo.conninfo_to_dict(dsn).get("host", "")
+    path = save_log(
+        chunks,
+        vectors,
+        query_vector,
+        results,
+        dsn_host=str(dsn_host),
+        model=embedding_model,
+    )
+    print(f"日志已写入 {path}")
 
 
 if __name__ == "__main__":

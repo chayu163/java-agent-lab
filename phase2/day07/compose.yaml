@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: rag_lab
       POSTGRES_USER: agent
-      POSTGRES_PASSWORD: agent_dev_only
+      POSTGRES_PASSWORD: 123456
     ports:
       - "5432:5432"
     volumes:

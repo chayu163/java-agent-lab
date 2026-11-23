@@ -20,11 +20,12 @@ notes/.obsidian/
 # 站点生成物（CI 每次构建重生成，不入库）
 docs/content/
 
-# 会话日志不入库；示例日志 session-20261122-154748-371904.json 是例外，
-# 它是笔记引用的唯一实证，已跟踪。gitignore 规则不能否定已跟踪文件，
-# 因此该文件不会因这条规则被移除。
+# 会话与检索日志不入库；Day 6 / Day 7 各保留一份示例日志作笔记实证，
+# 它们是已跟踪文件，gitignore 规则不能否定已跟踪文件，因此不会被移除。
 phase2/day06/logs/*
 !phase2/day06/logs/session-20261122-154748-371904.json
+phase2/day07/logs/*
+!phase2/day07/logs/retrieval-example.json
 
 # 本机工具配置（launch.json 里是本机 venv 的绝对路径）
 .claude/

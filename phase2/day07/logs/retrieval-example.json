@@ -1,0 +1,35 @@
+{
+  "embedding_model": "BAAI/bge-large-zh-v1.5",
+  "embedding_dimensions": 1024,
+  "dsn_host": "192.168.2.21",
+  "chunks": [
+    {
+      "source": "shipping.md",
+      "chunk_index": 0,
+      "content": "\n    发货后可以在订单详情页查看物流。顺丰单号通常以 SF 开头。\n\n    如果订单尚未发货，页面会显示预计发货时间。\n    ",
+      "dimensions": 1024
+    },
+    {
+      "source": "returns.md",
+      "chunk_index": 0,
+      "content": "\n    订单签收后七天内可以申请退货。生鲜商品和已拆封的个人护理商品不支持无理由退货。\n\n    申请通过后，退款会退回原支付账户。\n    ",
+      "dimensions": 1024
+    }
+  ],
+  "query": "订单已经发货，在哪里查顺丰物流单号？",
+  "top_k": 2,
+  "results": [
+    {
+      "source": "shipping.md",
+      "chunk_index": 0,
+      "content": "\n    发货后可以在订单详情页查看物流。顺丰单号通常以 SF 开头。\n\n    如果订单尚未发货，页面会显示预计发货时间。\n    ",
+      "distance": 0.21806716918945312
+    },
+    {
+      "source": "returns.md",
+      "chunk_index": 0,
+      "content": "\n    订单签收后七天内可以申请退货。生鲜商品和已拆封的个人护理商品不支持无理由退货。\n\n    申请通过后，退款会退回原支付账户。\n    ",
+      "distance": 0.6289237958834286
+    }
+  ]
+}
