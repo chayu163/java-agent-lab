@@ -195,19 +195,23 @@ def main() -> None:
 
     chunks = prepare_chunks()
     api_key = os.environ.get("EMBEDDING_API_KEY")
+    # 所有 chunk 内容一次请求送 embedding 模型，返回向量顺序与输入一致
     vectors = embed_texts(
         [chunk["content"] for chunk in chunks],
         base_url=embedding_base_url,
         model=embedding_model,
         api_key=api_key,
     )
+    # 查询句单独送同一个 embedding 模型，得到查询向量；入库与查询必须同模型
     query_vector = embed_texts(
         [QUERY],
         base_url=embedding_base_url,
         model=embedding_model,
         api_key=api_key,
     )[0]
+    # chunk 文本连同向量写入 pgvector（先删旧数据保证重跑不残留）
     store_chunks(dsn, chunks, vectors)
+    # 用查询向量按 cosine distance 升序查库，取最相近的 top_k 条
     results = search(dsn, query_vector, top_k=3)
 
     for result in results:
