@@ -261,6 +261,9 @@
           </button>
         </div>
         <div class="md ${data.kind === "code" ? "is-code" : ""}">${html}</div>`;
+      panel.querySelectorAll('.md a[href^="assets/"]').forEach((link) => {
+        link.href = new URL(link.getAttribute("href"), response.url).href;
+      });
       $("#doc-back").addEventListener("click", () => {
         panel.innerHTML = previous;
         panel.querySelectorAll(".doc-item").forEach((el) => {
